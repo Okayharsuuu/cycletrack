@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CycleTrack — GPS Tracker</title>
+
+<!-- Leaflet map library -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+<style>
+  /* ============================================================
+     DESIGN SYSTEM — dark tech aesthetic
+  ============================================================ */
+  :root {
+    --bg:          #070c14;
+    --surface:     #0c1422;
+    --surface2:    #111c2e;
+    --border:      #1c2d45;
+    --accent:      #00e87d;
+    --accent-dark: #009d54;
+    --accent-glow: rgba(0,232,125,0.12);
+    --text:        #ddeaf8;
+    --text-muted:  #617d99;
+    --danger:      #ff4757;
+    --warning:     #ffc107;
+    --info:        #38b2ff;
+    --mono:        'Space Mono', monospace;
+    --sans:        'DM Sans', sans-serif;
+    --radius:      10px;
+    --shadow:      0 4px 32px rgba(0,0,0,0.6);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Grid-dot background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(0,232,125,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .hidden { display: none !important; }
+
+  /* ============================================================
+     LOGIN PAGE
+  ============================================================ */
+  #login-page {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px 44px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow), 0 0 0 1px rgba(0,232,125,0.06);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 36px;
+  }
+
+  .brand-icon {
+    width: 40px; height: 40px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: grid; place-items: center;
+  }
+
+  .brand-icon svg { color: #070c14; }
+
+  .brand-name {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 1px;
+  }
+
+  .login-heading {
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+
+  .login-subheading {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 32px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .input-wrap {
+    position: relative;
+    margin-bottom: 20px;
+  }
+
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--accent);
+    color: #070c14;
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: background 0.2s, transform 0.1s;
+    margin-top: 8px;
+  }
+
+  .btn:hover { background: #1ff58d; }
+  .btn:active { transform: scale(0.98); }
+
+  .error-msg {
+    background: rgba(255,71,87,0.12);
+    border: 1px solid rgba(255,71,87,0.3);
+    border-radius: var(--radius);
+    color: var(--danger);
+    font-size: 13px;
+    padding: 12px 16px;
+    margin-top: 16px;
+    display: none;
+  }
+
+  .login-footer {
+    margin-top: 24px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* ============================================================
+     DASHBOARD
+  ============================================================ */
+  #dashboard {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text);
+  }
+
+  .topbar-brand .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-family: var(--mono);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+
+  .status-pill.online {
+    color: var(--accent);
+    border-color: rgba(0,232,125,0.3);
+    background: rgba(0,232,125,0.06);
+  }
+
+  .status-pill.offline {
+    color: var(--warning);
+    border-color: rgba(255,193,7,0.3);
+    background: rgba(255,193,7,0.06);
+  }
+
+  .status-pill .blink {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: blink 1.2s step-end infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .user-info {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .user-info span {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .logout-btn {
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+
+  .logout-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+  /* ── Main area ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+
+  .card-label {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .coord-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .coord-row:last-child { border-bottom: none; }
+
+  .coord-key {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+  }
+
+  .coord-val {
+    font-size: 14px;
+    font-family: var(--mono);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .timestamp-box {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.8;
+  }
+
+  .timestamp-box strong { color: var(--text); }
+
+  .accuracy-bar-wrap {
+    margin-top: 8px;
+  }
+
+  .accuracy-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+
+  .accuracy-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--accent);
+    width: 85%;
+    transition: width 0.5s ease;
+  }
+
+  .signal-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    margin-top: 8px;
+  }
+
+  .signal-bar {
+    width: 10px;
+    background: var(--border);
+    border-radius: 2px;
+    transition: background 0.3s;
+  }
+
+  .signal-bar.active { background: var(--accent); }
+
+  .refresh-btn {
+    width: 100%;
+    padding: 11px;
+    background: transparent;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid rgba(0,232,125,0.3);
+    border-radius: var(--radius);
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: background 0.2s;
+    text-transform: uppercase;
+  }
+
+  .refresh-btn:hover { background: var(--accent-glow); }
+
+  /* ── Map ── */
+  #map {
+    flex: 1;
+    background: #0d1520;
+  }
+
+  /* Override Leaflet default colors */
+  .leaflet-tile-pane { filter: brightness(0.7) saturate(0.6) hue-rotate(180deg); }
+  .leaflet-container { background: #0d1520; }
+
+  /* Custom popup */
+  .leaflet-popup-content-wrapper {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    box-shadow: var(--shadow) !important;
+    font-family: var(--mono) !important;
+    font-size: 12px !important;
+  }
+
+  .leaflet-popup-tip { background: var(--surface) !important; }
+
+  /* Cycle marker */
+  .cycle-marker {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    border: 3px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(0,232,125,0.25), 0 2px 8px rgba(0,0,0,0.5);
+    animation: markerPulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes markerPulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(0,232,125,0.25), 0 2px 8px rgba(0,0,0,0.5); }
+    50%       { box-shadow: 0 0 0 10px rgba(0,232,125,0.05), 0 2px 8px rgba(0,0,0,0.5); }
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 650px) {
+    .sidebar { width: 100%; height: 250px; border-right: none; border-bottom: 1px solid var(--border); }
+    .main { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- =========================================================
+     LOGIN PAGE
+========================================================== -->
+<div id="login-page">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+          <path d="M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">CycleTrack</div>
+        <div class="brand-sub">GPS Tracker</div>
+      </div>
+    </div>
+
+    <h1 class="login-heading">Welcome back</h1>
+    <p class="login-subheading">Sign in to monitor your cycle's location</p>
+
+    <div>
+      <label for="username">Username</label>
+      <div class="input-wrap">
+        <input type="text" id="username" placeholder="your_username" autocomplete="username"/>
+      </div>
+
+      <label for="password">Password</label>
+      <div class="input-wrap">
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+
+      <button class="btn" onclick="handleLogin()">Sign in →</button>
+      <div class="error-msg" id="error-msg">Incorrect username or password. Please try again.</div>
+    </div>
+
+    <p class="login-footer">
+      Demo credentials: <strong style="color:var(--accent)">admin</strong> / <strong style="color:var(--accent)">cycle123</strong>
+    </p>
+  </div>
+</div>
+
+<!-- =========================================================
+     DASHBOARD
+========================================================== -->
+<div id="dashboard" class="hidden">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="dot"></div>
+      CycleTrack
+    </div>
+
+    <div id="wifi-status" class="status-pill online">
+      <span class="blink"></span>
+      <span id="wifi-label">Device Online</span>
+    </div>
+
+    <div class="topbar-right">
+      <div class="user-info">Logged in as <span id="logged-user">—</span></div>
+      <button class="logout-btn" onclick="handleLogout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <!-- Coordinates card -->
+      <div class="card">
+        <div class="card-label">Last known location</div>
+        <div class="coord-row">
+          <span class="coord-key">LAT</span>
+          <span class="coord-val" id="disp-lat">—</span>
+        </div>
+        <div class="coord-row">
+          <span class="coord-key">LNG</span>
+          <span class="coord-val" id="disp-lng">—</span>
+        </div>
+        <div class="coord-row">
+          <span class="coord-key">ALT</span>
+          <span class="coord-val" id="disp-alt">— m</span>
+        </div>
+        <div class="coord-row">
+          <span class="coord-key">SPEED</span>
+          <span class="coord-val" id="disp-speed">0 km/h</span>
+        </div>
+      </div>
+
+      <!-- Time card -->
+      <div class="card">
+        <div class="card-label">Timestamp</div>
+        <div class="timestamp-box">
+          <div>Date: <strong id="disp-date">—</strong></div>
+          <div>Time: <strong id="disp-time">—</strong></div>
+          <div>Updated: <strong id="disp-updated">—</strong></div>
+        </div>
+      </div>
+
+      <!-- GPS signal -->
+      <div class="card">
+        <div class="card-label">GPS signal</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px;">
+          Satellites: <strong style="color:var(--accent)" id="disp-sats">—</strong>
+        </div>
+        <div class="signal-row" id="signal-bars">
+          <div class="signal-bar active" style="height:8px"></div>
+          <div class="signal-bar active" style="height:12px"></div>
+          <div class="signal-bar active" style="height:16px"></div>
+          <div class="signal-bar active" style="height:20px"></div>
+          <div class="signal-bar" style="height:24px"></div>
+        </div>
+        <div class="accuracy-bar-wrap">
+          <div style="font-size:12px;color:var(--text-muted);">Accuracy: <span id="disp-acc">±5 m</span></div>
+          <div class="accuracy-bar"><div class="accuracy-bar-fill" id="acc-bar"></div></div>
+        </div>
+      </div>
+
+      <button class="refresh-btn" onclick="fetchLocation()">⟳ Refresh location</button>
+
+      <div style="font-size:11px;color:var(--text-muted);line-height:1.7;padding:0 2px;">
+        Auto-refreshes every 30 s. Location updates only when device is connected to college Wi-Fi. Offline = last stored position.
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+  </div>
+</div>
+
+<!-- =========================================================
+     SCRIPTS
+========================================================== -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+/* ============================================================
+   CONFIGURATION — update these values for your project
+   ============================================================
+
+   Option A: Firebase Realtime Database (recommended)
+   ---------------------------------------------------
+   1. Go to https://console.firebase.google.com
+   2. Create a project → Realtime Database → create in test mode
+   3. Copy your database URL (e.g. https://my-project-default-rtdb.firebaseio.com)
+   4. Set FIREBASE_URL below
+   5. Your ESP32 will push data to: /devices/cycle001/location.json
+
+   Option B: Your own PHP/Node backend
+   ------------------------------------
+   Point FETCH_URL to your own endpoint that returns JSON:
+   { "lat": 28.6139, "lng": 77.2090, "alt": 215, "speed": 0,
+     "satellites": 7, "timestamp": 1714000000000, "wifi": true }
+   ============================================================ */
+
+  const FIREBASE_URL  = "https://console.firebase.google.com/u/1/project/cycletrack-gps-299ba/database/cycletrack-gps-299ba-default-rtdb/data/~2F";
+  const USE_MOCK_DATA = false;   // ← Set to FALSE once Firebase is configured
+
+  /* Demo credentials — change before deploying */
+  const USERS = {
+    "admin":   "cycle123",
+    "student": "track456"
+  };
+
+/* ============================================================
+   MOCK DATA (used while FIREBASE not configured)
+   Replace these with real values from your campus
+============================================================ */
+  const MOCK_DATA = {
+    lat: 28.6139,
+    lng: 77.2090,
+    alt: 215,
+    speed: 0,
+    satellites: 7,
+    accuracy: 4.2,
+    wifi: true,
+    timestamp: Date.now()
+  };
+
+/* ============================================================
+   STATE
+============================================================ */
+  let map, marker, accuracyCircle;
+  let currentUser = null;
+  let refreshInterval = null;
+
+/* ============================================================
+   AUTH
+============================================================ */
+  function handleLogin() {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value;
+    if (USERS[u] && USERS[u] === p) {
+      currentUser = u;
+      document.getElementById('error-msg').style.display = 'none';
+      document.getElementById('login-page').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      document.getElementById('logged-user').textContent = u;
+      initMap();
+      fetchLocation();
+      refreshInterval = setInterval(fetchLocation, 30000);
+    } else {
+      document.getElementById('error-msg').style.display = 'block';
+    }
+  }
+
+  function handleLogout() {
+    currentUser = null;
+    clearInterval(refreshInterval);
+    document.getElementById('dashboard').classList.add('hidden');
+    document.getElementById('login-page').classList.remove('hidden');
+    document.getElementById('password').value = '';
+  }
+
+  // Allow Enter key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !document.getElementById('login-page').classList.contains('hidden')) {
+      handleLogin();
+    }
+  });
+
+/* ============================================================
+   MAP INIT
+============================================================ */
+  function initMap() {
+    if (map) return;
+    map = L.map('map', { zoomControl: true }).setView([28.6139, 77.2090], 16);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Custom green dot marker
+    const cycleIcon = L.divIcon({
+      className: '',
+      html: '<div class="cycle-marker"></div>',
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -16]
+    });
+
+    marker = L.marker([28.6139, 77.2090], { icon: cycleIcon }).addTo(map);
+    accuracyCircle = L.circle([28.6139, 77.2090], {
+      radius: 5,
+      color: '#00e87d',
+      fillColor: '#00e87d',
+      fillOpacity: 0.08,
+      weight: 1
+    }).addTo(map);
+  }
+
+/* ============================================================
+   DATA FETCH
+============================================================ */
+  async function fetchLocation() {
+    try {
+      let data;
+
+      if (USE_MOCK_DATA) {
+        // Simulate a small GPS drift so it looks live
+        data = {
+          ...MOCK_DATA,
+          lat: MOCK_DATA.lat + (Math.random() - 0.5) * 0.0002,
+          lng: MOCK_DATA.lng + (Math.random() - 0.5) * 0.0002,
+          timestamp: Date.now()
+        };
+      } else {
+        const res = await fetch(FIREBASE_URL);
+        if (!res.ok) throw new Error('Network error');
+        data = await res.json();
+      }
+
+      updateUI(data);
+    } catch (err) {
+      console.error('Fetch failed:', err);
+    }
+  }
+
+/* ============================================================
+   UI UPDATE
+============================================================ */
+  function updateUI(d) {
+    // Map
+    const pos = [d.lat, d.lng];
+    marker.setLatLng(pos);
+    accuracyCircle.setLatLng(pos);
+    accuracyCircle.setRadius(d.accuracy || 5);
+    map.panTo(pos);
+
+    // Popup
+    marker.bindPopup(
+      `<b style="color:#00e87d">Your Cycle</b><br>
+       Lat: ${d.lat.toFixed(6)}<br>
+       Lng: ${d.lng.toFixed(6)}<br>
+       ${d.wifi ? '🟢 Online' : '🟡 Last known'}`
+    );
+
+    // Sidebar coords
+    document.getElementById('disp-lat').textContent   = d.lat.toFixed(6) + '°';
+    document.getElementById('disp-lng').textContent   = d.lng.toFixed(6) + '°';
+    document.getElementById('disp-alt').textContent   = (d.alt || '—') + ' m';
+    document.getElementById('disp-speed').textContent = (d.speed || 0).toFixed(1) + ' km/h';
+    document.getElementById('disp-sats').textContent  = d.satellites || '—';
+    document.getElementById('disp-acc').textContent   = '± ' + (d.accuracy || 5).toFixed(1) + ' m';
+
+    // Accuracy bar (max 20 m → 0%, 0 m → 100%)
+    const pct = Math.max(0, Math.min(100, 100 - ((d.accuracy || 5) / 20) * 100));
+    document.getElementById('acc-bar').style.width = pct + '%';
+
+    // Timestamp
+    const ts  = new Date(d.timestamp);
+    const now = new Date();
+    const diffMin = Math.round((now - ts) / 60000);
+    document.getElementById('disp-date').textContent    = ts.toLocaleDateString('en-IN');
+    document.getElementById('disp-time').textContent    = ts.toLocaleTimeString('en-IN');
+    document.getElementById('disp-updated').textContent = diffMin < 1 ? 'just now' : diffMin + ' min ago';
+
+    // WiFi status pill
+    const pill  = document.getElementById('wifi-status');
+    const label = document.getElementById('wifi-label');
+    if (d.wifi) {
+      pill.className = 'status-pill online';
+      label.textContent = 'Device Online';
+    } else {
+      pill.className = 'status-pill offline';
+      label.textContent = 'Showing last location';
+    }
+  }
+</script>
+</body>
+</html>
