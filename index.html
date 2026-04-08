@@ -6,7 +6,6 @@
 <title>CycleTrack — GPS Tracker</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-
 <style>
   :root {
     --bg:          #070c14;
@@ -136,7 +135,6 @@
     50% { opacity: 0.5; transform: scale(0.7); }
   }
 
-  /* ── Status pills ── */
   .status-pill {
     display: flex; align-items: center; gap: 6px;
     font-size: 12px; font-family: var(--mono);
@@ -169,7 +167,7 @@
 
   /* ── Sidebar ── */
   .sidebar {
-    width: 300px; flex-shrink: 0; background: var(--surface);
+    width: 320px; flex-shrink: 0; background: var(--surface);
     border-right: 1px solid var(--border); padding: 20px;
     overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
   }
@@ -192,14 +190,12 @@
   .coord-key { font-size: 12px; color: var(--text-muted); font-family: var(--mono); }
   .coord-val { font-size: 14px; font-family: var(--mono); color: var(--accent); font-weight: 700; }
 
-  /* ── FIXED: Timestamp card ── */
   .timestamp-box { font-family: var(--mono); font-size: 12px; color: var(--text-muted); line-height: 2; }
   .timestamp-box .ts-row { display: flex; justify-content: space-between; align-items: center; }
   .timestamp-box .ts-label { color: var(--text-muted); }
   .timestamp-box .ts-value { color: var(--text); font-weight: 700; }
   .timestamp-box .ts-value.no-fix { color: var(--warning); }
 
-  /* ── GPS fix banner ── */
   .gps-banner {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 14px; border-radius: 8px; font-size: 12px;
@@ -226,6 +222,16 @@
   }
   .refresh-btn:hover { background: var(--accent-glow); }
 
+  .config-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 12px; font-size: 12px;
+    font-family: var(--mono); color: var(--text); margin-bottom: 8px;
+  }
+  .config-check {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 12px;
+    font-size: 12px; color: var(--text-muted);
+  }
+
   #map { flex: 1; background: #0d1520; }
   .leaflet-tile-pane { filter: brightness(0.7) saturate(0.6) hue-rotate(180deg); }
   .leaflet-container { background: #0d1520; }
@@ -251,16 +257,14 @@
   }
 
   @media (max-width: 650px) {
-    .sidebar { width: 100%; height: 280px; border-right: none; border-bottom: 1px solid var(--border); }
+    .sidebar { width: 100%; height: 320px; border-right: none; border-bottom: 1px solid var(--border); }
     .main { flex-direction: column; }
   }
 </style>
 </head>
 <body>
 
-<!-- =========================================================
-     LOGIN PAGE
-========================================================== -->
+<!-- LOGIN PAGE -->
 <div id="login-page">
   <div class="login-card">
     <div class="brand">
@@ -277,47 +281,34 @@
       </div>
     </div>
 
-    <h1 class="login-heading">Welcome back</h1>
-    <p class="login-subheading">Sign in to monitor your cycle's location</p>
+    <h1 class="login-heading">Device login</h1>
+    <p class="login-subheading">Enter your device ID and password</p>
 
     <div>
-      <label for="username">Username</label>
+      <label for="username">Device ID</label>
       <div class="input-wrap">
-        <input type="text" id="username" placeholder="your_username" autocomplete="username"/>
+        <input type="text" id="username" placeholder="e.g., cycle001" autocomplete="username"/>
       </div>
       <label for="password">Password</label>
       <div class="input-wrap">
         <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
       </div>
       <button class="btn" onclick="handleLogin()">Sign in →</button>
-      <div class="error-msg" id="error-msg">Incorrect username or password. Please try again.</div>
+      <div class="error-msg" id="error-msg">Invalid device ID or password.</div>
     </div>
-
-    <p class="login-footer">
-      Credentials: <strong style="color:var(--accent)">admin</strong> / <strong style="color:var(--accent)">cycle123</strong>
-    </p>
   </div>
 </div>
 
-<!-- =========================================================
-     DASHBOARD
-========================================================== -->
+<!-- DASHBOARD -->
 <div id="dashboard" class="hidden">
 
   <div class="topbar">
-    <div class="topbar-brand">
-      <div class="dot"></div>
-      CycleTrack
-    </div>
-
-    <!-- FIXED: 3 possible states — online / searching / offline -->
+    <div class="topbar-brand"><div class="dot"></div>CycleTrack</div>
     <div id="wifi-status" class="status-pill searching">
-      <span class="blink"></span>
-      <span id="wifi-label">Connecting...</span>
+      <span class="blink"></span><span id="wifi-label">Connecting...</span>
     </div>
-
     <div class="topbar-right">
-      <div class="user-info">Logged in as <span id="logged-user">—</span></div>
+      <div class="user-info">Device: <span id="logged-user">—</span></div>
       <button class="logout-btn" onclick="handleLogout()">Logout</button>
     </div>
   </div>
@@ -325,49 +316,27 @@
   <div class="main">
     <div class="sidebar">
 
-      <!-- GPS fix banner — NEW -->
+      <!-- GPS fix banner -->
       <div class="gps-banner no-fix" id="gps-banner">
-        <span class="spin">⟳</span>
-        <span id="gps-banner-text">Waiting for GPS fix...</span>
+        <span class="spin">⟳</span><span id="gps-banner-text">Waiting for GPS fix...</span>
       </div>
 
       <!-- Coordinates -->
       <div class="card">
         <div class="card-label">Last known location</div>
-        <div class="coord-row">
-          <span class="coord-key">LAT</span>
-          <span class="coord-val" id="disp-lat">—</span>
-        </div>
-        <div class="coord-row">
-          <span class="coord-key">LNG</span>
-          <span class="coord-val" id="disp-lng">—</span>
-        </div>
-        <div class="coord-row">
-          <span class="coord-key">ALT</span>
-          <span class="coord-val" id="disp-alt">— m</span>
-        </div>
-        <div class="coord-row">
-          <span class="coord-key">SPEED</span>
-          <span class="coord-val" id="disp-speed">0 km/h</span>
-        </div>
+        <div class="coord-row"><span class="coord-key">LAT</span><span class="coord-val" id="disp-lat">—</span></div>
+        <div class="coord-row"><span class="coord-key">LNG</span><span class="coord-val" id="disp-lng">—</span></div>
+        <div class="coord-row"><span class="coord-key">ALT</span><span class="coord-val" id="disp-alt">— m</span></div>
+        <div class="coord-row"><span class="coord-key">SPEED</span><span class="coord-val" id="disp-speed">0 km/h</span></div>
       </div>
 
-      <!-- FIXED: Timestamp card with proper IST formatting -->
+      <!-- Timestamp -->
       <div class="card">
         <div class="card-label">Timestamp (IST)</div>
         <div class="timestamp-box">
-          <div class="ts-row">
-            <span class="ts-label">Date</span>
-            <span class="ts-value" id="disp-date">—</span>
-          </div>
-          <div class="ts-row">
-            <span class="ts-label">Time</span>
-            <span class="ts-value" id="disp-time">—</span>
-          </div>
-          <div class="ts-row">
-            <span class="ts-label">Updated</span>
-            <span class="ts-value" id="disp-updated">—</span>
-          </div>
+          <div class="ts-row"><span class="ts-label">Date</span><span class="ts-value" id="disp-date">—</span></div>
+          <div class="ts-row"><span class="ts-label">Time</span><span class="ts-value" id="disp-time">—</span></div>
+          <div class="ts-row"><span class="ts-label">Updated</span><span class="ts-value" id="disp-updated">—</span></div>
         </div>
       </div>
 
@@ -375,13 +344,11 @@
       <div class="card">
         <div class="card-label">GPS signal</div>
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px;">
-          Satellites locked: <strong style="color:var(--accent)" id="disp-sats">—</strong>
+          Satellites: <strong style="color:var(--accent)" id="disp-sats">—</strong>
         </div>
         <div class="signal-row" id="signal-bars">
-          <div class="signal-bar" style="height:8px"></div>
-          <div class="signal-bar" style="height:12px"></div>
-          <div class="signal-bar" style="height:16px"></div>
-          <div class="signal-bar" style="height:20px"></div>
+          <div class="signal-bar" style="height:8px"></div><div class="signal-bar" style="height:12px"></div>
+          <div class="signal-bar" style="height:16px"></div><div class="signal-bar" style="height:20px"></div>
           <div class="signal-bar" style="height:24px"></div>
         </div>
         <div style="margin-top:10px">
@@ -390,10 +357,27 @@
         </div>
       </div>
 
-      <button class="refresh-btn" onclick="fetchLocation()">⟳ Refresh location</button>
+      <!-- NEW: Device Configuration Card -->
+      <div class="card">
+        <div class="card-label">Device Configuration</div>
+        <div>
+          <input type="text" id="wifi-ssid" placeholder="Wi-Fi SSID" class="config-input">
+          <input type="text" id="wifi-identity" placeholder="EAP Identity (username)" class="config-input">
+          <input type="password" id="wifi-password" placeholder="Wi-Fi / EAP Password" class="config-input">
+          <label class="config-check">
+            <input type="checkbox" id="no-ca-cert"> No CA certificate (accept all)
+          </label>
+          <button class="refresh-btn" onclick="saveWifiConfig()">💾 Save Wi-Fi Config → ESP32</button>
+          <hr style="border-color:var(--border); margin: 12px 0;">
+          <label style="font-size:12px;color:var(--text-muted);">Device authentication</label>
+          <input type="text" id="device-id" placeholder="Device ID (e.g., cycle001)" class="config-input">
+          <button class="refresh-btn" onclick="generateDevicePassword()">🔑 Generate & Set Password</button>
+        </div>
+      </div>
 
+      <button class="refresh-btn" onclick="fetchLocation()">⟳ Refresh location</button>
       <div style="font-size:11px;color:var(--text-muted);line-height:1.7;padding:0 2px;">
-        Auto-refreshes every 30s. Green = live GPS fix. Yellow = last stored location (device offline or GPS searching).
+        Auto‑refresh every 30s. Green = live GPS. Yellow = last known.
       </div>
     </div>
 
@@ -401,60 +385,51 @@
   </div>
 </div>
 
-<!-- =========================================================
-     SCRIPTS
-========================================================== -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
-/* ============================================================
-   CONFIGURATION — update FIREBASE_URL with your project URL
-============================================================ */
-  const FIREBASE_URL  = "https://cycletrack-gps-299ba-default-rtdb.asia-southeast1.firebasedatabase.app/devices/cycle001/location.json";
-  const USE_MOCK_DATA = false;   // ← set true only for offline testing
+  // ========== CONFIGURATION – UPDATE THESE ==========
+  const FIREBASE_URL  = "https://cycletrack-gps-299ba-default-rtdb.asia-southeast1.firebasedatabase.app/";
+  const FIREBASE_AUTH = "gmGs1UWS9yJT70tcgMuOvPDi7jgca8BnITQfxKgG";  // your Firebase secret
+  // ==================================================
 
-  const MOCK_DATA = {
-    lat: 28.6139, lng: 77.2090, alt: 215, speed: 0,
-    satellites: 7, accuracy: 4.2,
-    wifi: true, gpsFixed: true,
-    timestamp: Date.now()
-  };
-
-  const USERS = {
-    "admin":   "cycle123",
-    "student": "track456"
-  };
-
-/* ============================================================
-   STATE
-============================================================ */
   let map, marker, accuracyCircle;
-  let currentUser = null;
+  let currentDeviceId = null;
   let refreshInterval = null;
   let lastData = null;
 
-/* ============================================================
-   AUTH
-============================================================ */
-  function handleLogin() {
-    const u = document.getElementById('username').value.trim();
-    const p = document.getElementById('password').value;
-    if (USERS[u] && USERS[u] === p) {
-      currentUser = u;
-      document.getElementById('error-msg').style.display = 'none';
-      document.getElementById('login-page').classList.add('hidden');
-      document.getElementById('dashboard').classList.remove('hidden');
-      document.getElementById('logged-user').textContent = u;
-      initMap();
-      fetchLocation();
-      refreshInterval = setInterval(fetchLocation, 30000);
-    } else {
+  // ---------- Authentication (Firebase) ----------
+  async function handleLogin() {
+    const deviceId = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    if (!deviceId || !password) {
+      document.getElementById('error-msg').style.display = 'block';
+      return;
+    }
+    const url = `${FIREBASE_URL}devices/${deviceId}/auth/password.json?auth=${FIREBASE_AUTH}`;
+    try {
+      const res = await fetch(url);
+      const storedPass = await res.json();
+      if (storedPass && storedPass === password) {
+        currentDeviceId = deviceId;
+        document.getElementById('error-msg').style.display = 'none';
+        document.getElementById('login-page').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        document.getElementById('logged-user').textContent = deviceId;
+        initMap();
+        fetchLocation();
+        if (refreshInterval) clearInterval(refreshInterval);
+        refreshInterval = setInterval(fetchLocation, 30000);
+      } else {
+        document.getElementById('error-msg').style.display = 'block';
+      }
+    } catch (err) {
+      console.error(err);
       document.getElementById('error-msg').style.display = 'block';
     }
   }
 
   function handleLogout() {
-    currentUser = null;
+    currentDeviceId = null;
     clearInterval(refreshInterval);
     document.getElementById('dashboard').classList.add('hidden');
     document.getElementById('login-page').classList.remove('hidden');
@@ -466,9 +441,58 @@
       handleLogin();
   });
 
-/* ============================================================
-   MAP INIT
-============================================================ */
+  // ---------- Wi-Fi config write to Firebase ----------
+  async function saveWifiConfig() {
+    const deviceId = document.getElementById('device-id').value.trim();
+    if (!deviceId) {
+      alert("Enter Device ID in the configuration card first.");
+      return;
+    }
+    const config = {
+      ssid: document.getElementById('wifi-ssid').value.trim(),
+      identity: document.getElementById('wifi-identity').value.trim(),
+      password: document.getElementById('wifi-password').value,
+      caCertNone: document.getElementById('no-ca-cert').checked
+    };
+    if (!config.ssid) {
+      alert("SSID is required");
+      return;
+    }
+    const url = `${FIREBASE_URL}devices/${deviceId}/config/wifi.json?auth=${FIREBASE_AUTH}`;
+    try {
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(config)
+      });
+      if (res.ok) alert("✅ Wi-Fi config sent to device (ESP32 will read it within 60 seconds)");
+      else alert("❌ Error saving config");
+    } catch (err) {
+      alert("Network error");
+    }
+  }
+
+  async function generateDevicePassword() {
+    const deviceId = document.getElementById('device-id').value.trim();
+    if (!deviceId) {
+      alert("Enter Device ID");
+      return;
+    }
+    const newPass = Math.random().toString(36).slice(2, 10);
+    const url = `${FIREBASE_URL}devices/${deviceId}/auth/password.json?auth=${FIREBASE_AUTH}`;
+    try {
+      const res = await fetch(url, { method: 'PUT', body: JSON.stringify(newPass) });
+      if (res.ok) {
+        alert(`🔐 New password for ${deviceId}: ${newPass}\nUse this to log into the dashboard.`);
+      } else {
+        alert("Error saving password");
+      }
+    } catch (err) {
+      alert("Network error");
+    }
+  }
+
+  // ---------- Map & data ----------
   function initMap() {
     if (map) return;
     map = L.map('map', { zoomControl: true }).setView([28.6139, 77.2090], 16);
@@ -480,7 +504,6 @@
       className: '', html: '<div class="cycle-marker" id="map-marker-dot"></div>',
       iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16]
     });
-
     marker = L.marker([28.6139, 77.2090], { icon: cycleIcon }).addTo(map);
     accuracyCircle = L.circle([28.6139, 77.2090], {
       radius: 5, color: '#00e87d', fillColor: '#00e87d',
@@ -488,47 +511,33 @@
     }).addTo(map);
   }
 
-/* ============================================================
-   DATA FETCH
-============================================================ */
   async function fetchLocation() {
+    if (!currentDeviceId) return;
+    const url = `${FIREBASE_URL}devices/${currentDeviceId}/location.json?auth=${FIREBASE_AUTH}`;
     try {
-      let data;
-      if (USE_MOCK_DATA) {
-        data = { ...MOCK_DATA, lat: MOCK_DATA.lat + (Math.random()-0.5)*0.0002, timestamp: Date.now() };
-      } else {
-        const res = await fetch(FIREBASE_URL);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        data = await res.json();
-        if (!data) throw new Error('No data in Firebase yet');
-      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data) throw new Error("No data");
       lastData = data;
       updateUI(data);
     } catch (err) {
-      console.error('Fetch failed:', err);
-      showFetchError(err.message);
+      console.warn(err);
+      document.getElementById('wifi-status').className = 'status-pill offline';
+      document.getElementById('wifi-label').textContent = 'Cannot reach Firebase';
     }
   }
 
-/* ============================================================
-   UI UPDATE — FIXED date/time + status logic
-============================================================ */
-  // Device is considered powered-off if its last timestamp is older than this
-  const DEVICE_STALE_MS = 2 * 60 * 1000; // 2 minutes
-
   function updateUI(d) {
-    // ── Staleness check — if ESP32 stopped sending, ignore wifi/gps fields ──
     const ts = new Date(d.timestamp);
     const isValidDate = !isNaN(ts.getTime()) && ts.getFullYear() > 2020;
-    const dataAgeMs   = isValidDate ? (Date.now() - ts.getTime()) : Infinity;
-    const deviceAlive = dataAgeMs < DEVICE_STALE_MS;
+    const dataAgeMs = isValidDate ? (Date.now() - ts.getTime()) : Infinity;
+    const deviceAlive = dataAgeMs < 120000;  // 2 min
 
-    // ── Derive clean states (only trust wifi/gps fields if device is alive) ──
-    const wifiOn   = deviceAlive && d.wifi === true;
+    const wifiOn = deviceAlive && d.wifi === true;
     const gpsFixed = deviceAlive && (d.gpsFixed === true || (d.lat && d.lat !== 0 && d.gpsFixed !== false));
 
-    // ── GPS fix banner ──
-    const banner     = document.getElementById('gps-banner');
+    // GPS banner
+    const banner = document.getElementById('gps-banner');
     const bannerText = document.getElementById('gps-banner-text');
     if (!deviceAlive) {
       banner.className = 'gps-banner no-fix';
@@ -541,112 +550,67 @@
       bannerText.innerHTML = '<span class="spin">⟳</span> Searching for GPS fix...';
     }
 
-    // ── WiFi + GPS status pill — 4 distinct states ──
-    const pill  = document.getElementById('wifi-status');
+    // Status pill
+    const pill = document.getElementById('wifi-status');
     const label = document.getElementById('wifi-label');
     if (!deviceAlive) {
-      // Timestamp is stale — device is off regardless of stored wifi/gps values
       pill.className = 'status-pill offline';
-      label.textContent = 'Device off — last known location';
+      label.textContent = 'Device off — last known';
     } else if (wifiOn && gpsFixed) {
-      // Best case: both connected
       pill.className = 'status-pill online';
-      label.textContent = 'Device online — live GPS';
+      label.textContent = 'Online — live GPS';
     } else if (wifiOn && !gpsFixed) {
-      // WiFi connected but GPS still searching
       pill.className = 'status-pill searching';
-      label.textContent = 'Wi-Fi on — searching GPS';
+      label.textContent = 'Wi‑Fi on — searching GPS';
     } else {
-      // WiFi not connected
       pill.className = 'status-pill offline';
-      label.textContent = 'Offline — last known location';
+      label.textContent = 'Offline — last known';
     }
 
-    // ── Map update (only if we have real coords) ──
+    // Map
     if (gpsFixed && d.lat && d.lng) {
       const pos = [d.lat, d.lng];
       marker.setLatLng(pos);
       accuracyCircle.setLatLng(pos);
       accuracyCircle.setRadius(d.accuracy || 5);
       map.panTo(pos);
-
-      // Update marker color
       const dot = document.getElementById('map-marker-dot');
       if (dot) dot.className = 'cycle-marker';
-
-      marker.bindPopup(
-        `<b style="color:#00e87d">Your Cycle</b><br>
-         Lat: ${d.lat.toFixed(6)}<br>
-         Lng: ${d.lng.toFixed(6)}<br>
-         ${(wifiOn && gpsFixed) ? '🟢 Live' : '🟡 Last known'}`
-      );
+      marker.bindPopup(`<b>Cycle</b><br>Lat: ${d.lat.toFixed(6)}<br>Lng: ${d.lng.toFixed(6)}<br>${wifiOn && gpsFixed ? '🟢 Live' : '🟡 Last known'}`);
     } else {
       const dot = document.getElementById('map-marker-dot');
       if (dot) dot.className = 'cycle-marker no-fix';
     }
 
-    // ── Coordinates ──
-    document.getElementById('disp-lat').textContent   = d.lat ? d.lat.toFixed(6) + '°' : '—';
-    document.getElementById('disp-lng').textContent   = d.lng ? d.lng.toFixed(6) + '°' : '—';
-    document.getElementById('disp-alt').textContent   = d.alt ? d.alt.toFixed(1) + ' m' : '— m';
-    document.getElementById('disp-speed').textContent = d.speed !== undefined ? d.speed.toFixed(1) + ' km/h' : '0 km/h';
-
-    // ── Satellites + signal bars ──
+    // Coordinates & signal
+    document.getElementById('disp-lat').textContent = d.lat ? d.lat.toFixed(6)+'°' : '—';
+    document.getElementById('disp-lng').textContent = d.lng ? d.lng.toFixed(6)+'°' : '—';
+    document.getElementById('disp-alt').textContent = d.alt ? d.alt.toFixed(1)+' m' : '— m';
+    document.getElementById('disp-speed').textContent = d.speed !== undefined ? d.speed.toFixed(1)+' km/h' : '0 km/h';
     const sats = d.satellites || 0;
     document.getElementById('disp-sats').textContent = gpsFixed ? sats : '0 (no fix)';
     const bars = document.querySelectorAll('.signal-bar');
-    const activeBars = gpsFixed ? Math.min(5, Math.round(sats / 2)) : 0;
-    bars.forEach((b, i) => b.classList.toggle('active', i < activeBars));
-
-    // ── Accuracy bar ──
+    const activeBars = gpsFixed ? Math.min(5, Math.round(sats/2)) : 0;
+    bars.forEach((b,i)=> b.classList.toggle('active', i<activeBars));
     const acc = d.accuracy || (gpsFixed ? 5 : 99);
-    document.getElementById('disp-acc').textContent = gpsFixed ? '± ' + acc.toFixed(1) + ' m' : 'No fix';
-    const pct = gpsFixed ? Math.max(0, Math.min(100, 100 - (acc / 20) * 100)) : 0;
-    document.getElementById('acc-bar').style.width = pct + '%';
+    document.getElementById('disp-acc').textContent = gpsFixed ? '± '+acc.toFixed(1)+' m' : 'No fix';
+    const pct = gpsFixed ? Math.max(0, Math.min(100, 100-(acc/20)*100)) : 0;
+    document.getElementById('acc-bar').style.width = pct+'%';
 
-    /* ── Timestamp display ── */
+    // Timestamp
     if (isValidDate) {
-      const dateStr = ts.toLocaleDateString('en-IN', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        timeZone: 'Asia/Kolkata'
-      });
-      const timeStr = ts.toLocaleTimeString('en-IN', {
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: true, timeZone: 'Asia/Kolkata'
-      });
-
-      const diffSec = Math.floor(dataAgeMs / 1000);
-      const diffMin = Math.floor(diffSec / 60);
-      const diffHr  = Math.floor(diffMin / 60);
-
-      let agoStr;
-      if (diffSec < 10)       agoStr = 'just now';
-      else if (diffSec < 60)  agoStr = diffSec + ' sec ago';
-      else if (diffMin < 60)  agoStr = diffMin + ' min ago';
-      else                    agoStr = diffHr + ' hr ago';
-
-      document.getElementById('disp-date').textContent    = dateStr;
-      document.getElementById('disp-time').textContent    = timeStr;
+      const dateStr = ts.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric', timeZone:'Asia/Kolkata' });
+      const timeStr = ts.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true, timeZone:'Asia/Kolkata' });
+      const diffSec = Math.floor(dataAgeMs/1000);
+      let agoStr = diffSec<10 ? 'just now' : (diffSec<60 ? diffSec+' sec ago' : (Math.floor(diffSec/60)<60 ? Math.floor(diffSec/60)+' min ago' : Math.floor(diffSec/3600)+' hr ago'));
+      document.getElementById('disp-date').textContent = dateStr;
+      document.getElementById('disp-time').textContent = timeStr;
       document.getElementById('disp-updated').textContent = agoStr;
-
-      const updEl = document.getElementById('disp-updated');
-      updEl.className = 'ts-value' + (!deviceAlive || diffMin > 5 ? ' no-fix' : '');
     } else {
-      // Fallback if NTP wasn't synced on ESP32 side
-      document.getElementById('disp-date').textContent    = 'NTP not synced';
-      document.getElementById('disp-time').textContent    = '—';
+      document.getElementById('disp-date').textContent = 'NTP not synced';
+      document.getElementById('disp-time').textContent = '—';
       document.getElementById('disp-updated').textContent = '—';
-      document.getElementById('disp-date').className = 'ts-value no-fix';
     }
-  }
-
-/* ============================================================
-   ERROR STATE
-============================================================ */
-  function showFetchError(msg) {
-    document.getElementById('wifi-status').className = 'status-pill offline';
-    document.getElementById('wifi-label').textContent = 'Cannot reach Firebase';
-    console.warn('Firebase error:', msg);
   }
 </script>
 </body>
