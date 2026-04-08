@@ -514,8 +514,9 @@
    UI UPDATE — FIXED date/time + status logic
 ============================================================ */
   function updateUI(d) {
-    const gpsFixed = d.gpsFixed !== undefined ? d.gpsFixed : (d.lat && d.lat !== 0);
-    const isOnline = d.wifi === true && gpsFixed;
+    // ── Derive clean states ──
+    const wifiOn  = d.wifi === true;
+    const gpsFixed = d.gpsFixed === true || (d.lat && d.lat !== 0 && d.gpsFixed !== false);
 
     // ── GPS fix banner ──
     const banner     = document.getElementById('gps-banner');
@@ -528,16 +529,19 @@
       bannerText.innerHTML = '<span class="spin">⟳</span> Searching for GPS fix...';
     }
 
-    // ── WiFi status pill — 3 states ──
+    // ── WiFi + GPS status pill — 3 distinct states ──
     const pill  = document.getElementById('wifi-status');
     const label = document.getElementById('wifi-label');
-    if (isOnline) {
+    if (wifiOn && gpsFixed) {
+      // Best case: both connected
       pill.className = 'status-pill online';
       label.textContent = 'Device online — live GPS';
-    } else if (d.wifi && !gpsFixed) {
+    } else if (wifiOn && !gpsFixed) {
+      // WiFi connected but GPS still searching
       pill.className = 'status-pill searching';
       label.textContent = 'Wi-Fi on — searching GPS';
     } else {
+      // Neither — offline or can't reach Firebase
       pill.className = 'status-pill offline';
       label.textContent = 'Offline — last known location';
     }
@@ -558,7 +562,7 @@
         `<b style="color:#00e87d">Your Cycle</b><br>
          Lat: ${d.lat.toFixed(6)}<br>
          Lng: ${d.lng.toFixed(6)}<br>
-         ${isOnline ? '🟢 Live' : '🟡 Last known'}`
+         ${(wifiOn && gpsFixed) ? '🟢 Live' : '🟡 Last known'}`
       );
     } else {
       const dot = document.getElementById('map-marker-dot');
