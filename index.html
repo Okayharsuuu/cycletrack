@@ -6,686 +6,643 @@
 <title>CycleTrack — GPS Tracker</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
 <style>
   :root {
-    --bg:#070c14; --surface:#0c1422; --surface2:#111c2e; --border:#1c2d45;
-    --accent:#00e87d; --accent-dark:#009d54; --accent-glow:rgba(0,232,125,0.12);
-    --text:#ddeaf8; --text-muted:#617d99; --danger:#ff4757; --warning:#ffc107;
-    --info:#38b2ff; --mono:'Space Mono',monospace; --sans:'DM Sans',sans-serif;
-    --radius:10px; --shadow:0 4px 32px rgba(0,0,0,0.6);
+    --bg:          #070c14;
+    --surface:     #0c1422;
+    --surface2:    #111c2e;
+    --border:      #1c2d45;
+    --accent:      #00e87d;
+    --accent-dark: #009d54;
+    --accent-glow: rgba(0,232,125,0.12);
+    --text:        #ddeaf8;
+    --text-muted:  #617d99;
+    --danger:      #ff4757;
+    --warning:     #ffc107;
+    --info:        #38b2ff;
+    --mono:        'Space Mono', monospace;
+    --sans:        'DM Sans', sans-serif;
+    --radius:      10px;
+    --shadow:      0 4px 32px rgba(0,0,0,0.6);
   }
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-  body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle,rgba(0,232,125,.06) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0}
-  .hidden{display:none!important}
 
-  /* LOGIN */
-  #login-page{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
-  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:48px 44px;width:100%;max-width:420px;box-shadow:var(--shadow),0 0 0 1px rgba(0,232,125,.06)}
-  .brand{display:flex;align-items:center;gap:12px;margin-bottom:36px}
-  .brand-icon{width:40px;height:40px;background:var(--accent);border-radius:10px;display:grid;place-items:center}
-  .brand-icon svg{color:#070c14}
-  .brand-name{font-family:var(--mono);font-weight:700;font-size:20px;color:var(--text)}
-  .brand-sub{font-size:11px;color:var(--accent);letter-spacing:2px;text-transform:uppercase}
-  .login-heading{font-size:26px;font-weight:600;margin-bottom:6px}
-  .login-subheading{font-size:14px;color:var(--text-muted);margin-bottom:32px}
-  label{display:block;font-size:12px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px}
-  .input-wrap{position:relative;margin-bottom:20px}
-  input[type="text"],input[type="password"],select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;font-family:var(--mono);font-size:14px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s}
-  select{appearance:none;cursor:pointer}
-  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
-  .btn{width:100%;padding:15px;background:var(--accent);color:#070c14;font-family:var(--mono);font-size:14px;font-weight:700;border:none;border-radius:var(--radius);cursor:pointer;transition:background .2s,transform .1s;margin-top:8px}
-  .btn:hover{background:#1ff58d}
-  .btn:active{transform:scale(.98)}
-  .btn.secondary{background:transparent;color:var(--accent);border:1px solid rgba(0,232,125,.35)}
-  .btn.secondary:hover{background:var(--accent-glow)}
-  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
-  .error-msg{background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3);border-radius:var(--radius);color:var(--danger);font-size:13px;padding:12px 16px;margin-top:16px;display:none}
-  .login-footer{margin-top:24px;font-size:12px;color:var(--text-muted);text-align:center}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* DASHBOARD */
-  #dashboard{position:relative;z-index:1;display:flex;flex-direction:column;height:100vh}
-  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;gap:16px;flex-wrap:wrap}
-  .topbar-brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-weight:700;font-size:15px;color:var(--text)}
-  .topbar-brand .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 2s ease-in-out infinite}
-  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
-  .status-pill{display:flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);padding:6px 14px;border-radius:20px;border:1px solid;transition:all .4s ease}
-  .status-pill.online{color:var(--accent);border-color:rgba(0,232,125,.3);background:rgba(0,232,125,.06)}
-  .status-pill.offline{color:var(--warning);border-color:rgba(255,193,7,.3);background:rgba(255,193,7,.06)}
-  .status-pill.searching{color:var(--info);border-color:rgba(56,178,255,.3);background:rgba(56,178,255,.06)}
-  .status-pill .blink{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 1.2s step-end infinite}
-  @keyframes blink{50%{opacity:0}}
-  .topbar-right{display:flex;align-items:center;gap:8px}
-  .user-info{font-size:13px;color:var(--text-muted)}
-  .user-info span{color:var(--text);font-weight:500}
-  .topbar-btn{font-size:12px;font-family:var(--mono);color:var(--text-muted);background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;transition:color .2s,border-color .2s,background .2s;white-space:nowrap}
-  .topbar-btn:hover{color:var(--accent);border-color:var(--accent)}
-  .topbar-btn.active{color:var(--accent);border-color:rgba(0,232,125,.4);background:var(--accent-glow)}
-  .topbar-btn.logout:hover{color:var(--danger);border-color:var(--danger)}
-  .main{display:flex;flex:1;overflow:hidden}
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-  /* SIDEBAR */
-  .sidebar{width:300px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px}
-  .card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
-  .card-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px}
-  .coord-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
-  .coord-row:last-child{border-bottom:none}
-  .coord-key{font-size:12px;color:var(--text-muted);font-family:var(--mono)}
-  .coord-val{font-size:14px;font-family:var(--mono);color:var(--accent);font-weight:700}
-  .timestamp-box{font-family:var(--mono);font-size:12px;color:var(--text-muted);line-height:2}
-  .timestamp-box .ts-row{display:flex;justify-content:space-between;align-items:center}
-  .timestamp-box .ts-label{color:var(--text-muted)}
-  .timestamp-box .ts-value{color:var(--text);font-weight:700}
-  .timestamp-box .ts-value.no-fix{color:var(--warning)}
-  .gps-banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;font-size:12px;font-family:var(--mono);border:1px solid;transition:all .4s ease}
-  .gps-banner.fixed{color:var(--accent);border-color:rgba(0,232,125,.25);background:rgba(0,232,125,.06)}
-  .gps-banner.no-fix{color:var(--warning);border-color:rgba(255,193,7,.25);background:rgba(255,193,7,.06)}
-  .gps-banner .spin{display:inline-block;animation:spin 1s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .accuracy-bar{height:4px;background:var(--border);border-radius:4px;overflow:hidden;margin-top:6px}
-  .accuracy-bar-fill{height:100%;border-radius:4px;background:var(--accent);width:0%;transition:width .5s ease}
-  .signal-row{display:flex;align-items:flex-end;gap:3px;margin-top:8px}
-  .signal-bar{width:10px;background:var(--border);border-radius:2px;transition:background .3s}
-  .signal-bar.active{background:var(--accent)}
-  .refresh-btn{width:100%;padding:11px;background:transparent;color:var(--accent);font-family:var(--mono);font-size:12px;font-weight:700;border:1px solid rgba(0,232,125,.3);border-radius:var(--radius);cursor:pointer;transition:background .2s;text-transform:uppercase}
-  .refresh-btn:hover{background:var(--accent-glow)}
-  #map{flex:1;background:#0d1520}
-  .leaflet-tile-pane{filter:brightness(.7) saturate(.6) hue-rotate(180deg)}
-  .leaflet-container{background:#0d1520}
-  .leaflet-popup-content-wrapper{background:var(--surface)!important;color:var(--text)!important;border:1px solid var(--border)!important;border-radius:10px!important;box-shadow:var(--shadow)!important;font-family:var(--mono)!important;font-size:12px!important}
-  .leaflet-popup-tip{background:var(--surface)!important}
-  .cycle-marker{width:28px;height:28px;background:var(--accent);border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 4px rgba(0,232,125,.25),0 2px 8px rgba(0,0,0,.5);animation:markerPulse 2.5s ease-in-out infinite}
-  .cycle-marker.no-fix{background:var(--warning);box-shadow:0 0 0 4px rgba(255,193,7,.25),0 2px 8px rgba(0,0,0,.5)}
-  @keyframes markerPulse{0%,100%{box-shadow:0 0 0 4px rgba(0,232,125,.25),0 2px 8px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 10px rgba(0,232,125,.05),0 2px 8px rgba(0,0,0,.5)}}
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(0,232,125,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+  }
 
-  /* ADMIN PANEL */
-  #tab-admin{flex:1;overflow-y:auto}
-  .admin-body{padding:32px 24px;display:flex;flex-direction:column;gap:28px;max-width:960px;margin:0 auto}
-  .section-title{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:16px;display:flex;align-items:center;gap:10px}
-  .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
-  .admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-  @media(max-width:720px){.admin-grid{grid-template-columns:1fr}}
-  .acard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px}
-  .acard h3{font-size:15px;font-weight:600;margin-bottom:4px}
-  .acard p{font-size:13px;color:var(--text-muted);margin-bottom:18px;line-height:1.6}
-  .acard label{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;margin-top:14px;display:block}
-  .acard label:first-of-type{margin-top:0}
-  .acard input,.acard select,.acard textarea{padding:11px 14px;font-size:13px}
-  .acard textarea{resize:vertical;font-size:11px;line-height:1.5}
-  .opt-tag{font-size:9px;background:rgba(97,125,153,.15);color:var(--text-muted);border:1px solid var(--border);border-radius:4px;padding:1px 5px;margin-left:6px;letter-spacing:.5px;vertical-align:middle;text-transform:none}
+  .hidden { display: none !important; }
 
-  /* device table */
-  .dtable{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
-  .dtable th{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text-muted);font-size:10px;letter-spacing:1.2px;text-transform:uppercase}
-  .dtable td{padding:12px 14px;border-bottom:1px solid rgba(28,45,69,.5);vertical-align:middle}
-  .dtable tr:last-child td{border-bottom:none}
-  .dtable tr:hover td{background:rgba(0,232,125,.02)}
-  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-family:var(--mono);border:1px solid}
-  .badge.on{color:var(--accent);border-color:rgba(0,232,125,.3);background:rgba(0,232,125,.08)}
-  .badge.off{color:var(--text-muted);border-color:var(--border);background:var(--surface2)}
-  .badge.pend{color:var(--info);border-color:rgba(56,178,255,.3);background:rgba(56,178,255,.08)}
-  .iBtn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);padding:5px 9px;cursor:pointer;font-size:13px;transition:all .2s}
-  .iBtn:hover{border-color:var(--danger);color:var(--danger)}
-  .iBtn.go:hover{border-color:var(--accent);color:var(--accent)}
+  /* ── LOGIN ── */
+  #login-page {
+    position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+  }
 
-  /* creds box */
-  .creds-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;font-family:var(--mono);font-size:12px;display:none;margin-top:16px}
-  .creds-box.show{display:block}
-  .creds-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(28,45,69,.5)}
-  .creds-row:last-child{border-bottom:none}
-  .creds-key{color:var(--text-muted)}
-  .creds-val{color:var(--accent);font-weight:700;display:flex;align-items:center;gap:8px}
-  .cpBtn{background:none;border:1px solid var(--border);color:var(--text-muted);cursor:pointer;font-size:11px;padding:2px 7px;border-radius:4px;transition:all .2s;font-family:var(--mono)}
-  .cpBtn:hover{color:var(--accent);border-color:var(--accent)}
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px 44px;
+    width: 100%; max-width: 420px;
+    box-shadow: var(--shadow), 0 0 0 1px rgba(0,232,125,0.06);
+  }
 
-  /* status messages */
-  .pstat{font-size:12px;font-family:var(--mono);padding:10px 14px;border-radius:8px;margin-top:12px;display:none;border:1px solid}
-  .pstat.ok{color:var(--accent);border-color:rgba(0,232,125,.3);background:rgba(0,232,125,.07)}
-  .pstat.err{color:var(--danger);border-color:rgba(255,71,87,.3);background:rgba(255,71,87,.07)}
-  .pstat.loading{color:var(--info);border-color:rgba(56,178,255,.3);background:rgba(56,178,255,.07)}
-  .spin2{display:inline-block;animation:spin .7s linear infinite}
-  .note{font-size:12px;color:var(--text-muted);padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);line-height:1.7;margin-top:14px}
-  .note strong{color:var(--text)}
-  code{color:var(--accent)}
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 36px; }
+  .brand-icon {
+    width: 40px; height: 40px; background: var(--accent);
+    border-radius: 10px; display: grid; place-items: center;
+  }
+  .brand-icon svg { color: #070c14; }
+  .brand-name { font-family: var(--mono); font-weight: 700; font-size: 20px; color: var(--text); }
+  .brand-sub { font-size: 11px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
 
-  @media(max-width:650px){
-    .sidebar{width:100%;height:280px;border-right:none;border-bottom:1px solid var(--border)}
-    .main{flex-direction:column}
-    .topbar-right{gap:5px}
-    .login-card{padding:32px 24px}
+  .login-heading { font-size: 26px; font-weight: 600; margin-bottom: 6px; }
+  .login-subheading { font-size: 14px; color: var(--text-muted); margin-bottom: 32px; }
+
+  label {
+    display: block; font-size: 12px; font-weight: 500;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 8px;
+  }
+
+  .input-wrap { position: relative; margin-bottom: 20px; }
+
+  input[type="text"], input[type="password"] {
+    width: 100%; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 16px; font-family: var(--mono); font-size: 14px;
+    color: var(--text); outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+  .btn {
+    width: 100%; padding: 15px; background: var(--accent);
+    color: #070c14; font-family: var(--mono); font-size: 14px;
+    font-weight: 700; border: none; border-radius: var(--radius);
+    cursor: pointer; transition: background 0.2s, transform 0.1s; margin-top: 8px;
+  }
+  .btn:hover { background: #1ff58d; }
+  .btn:active { transform: scale(0.98); }
+
+  .error-msg {
+    background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.3);
+    border-radius: var(--radius); color: var(--danger);
+    font-size: 13px; padding: 12px 16px; margin-top: 16px; display: none;
+  }
+
+  .login-footer { margin-top: 24px; font-size: 12px; color: var(--text-muted); text-align: center; }
+
+  /* ── DASHBOARD ── */
+  #dashboard { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100vh; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    gap: 16px; flex-wrap: wrap;
+  }
+
+  .topbar-brand {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-weight: 700; font-size: 15px; color: var(--text);
+  }
+
+  .topbar-brand .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
+
+  /* ── Status pills ── */
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-family: var(--mono);
+    padding: 6px 14px; border-radius: 20px; border: 1px solid;
+    transition: all 0.4s ease;
+  }
+  .status-pill.online  { color: var(--accent);   border-color: rgba(0,232,125,0.3); background: rgba(0,232,125,0.06); }
+  .status-pill.offline { color: var(--warning);  border-color: rgba(255,193,7,0.3); background: rgba(255,193,7,0.06); }
+  .status-pill.searching { color: var(--info);   border-color: rgba(56,178,255,0.3); background: rgba(56,178,255,0.06); }
+
+  .status-pill .blink {
+    width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+    animation: blink 1.2s step-end infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .user-info { font-size: 13px; color: var(--text-muted); }
+  .user-info span { color: var(--text); font-weight: 500; }
+
+  .logout-btn {
+    font-size: 12px; font-family: var(--mono); color: var(--text-muted);
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 12px; cursor: pointer; transition: color 0.2s, border-color 0.2s;
+  }
+  .logout-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 300px; flex-shrink: 0; background: var(--surface);
+    border-right: 1px solid var(--border); padding: 20px;
+    overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
+  }
+
+  .card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+  }
+
+  .card-label {
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 10px;
+  }
+
+  .coord-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .coord-row:last-child { border-bottom: none; }
+  .coord-key { font-size: 12px; color: var(--text-muted); font-family: var(--mono); }
+  .coord-val { font-size: 14px; font-family: var(--mono); color: var(--accent); font-weight: 700; }
+
+  /* ── FIXED: Timestamp card ── */
+  .timestamp-box { font-family: var(--mono); font-size: 12px; color: var(--text-muted); line-height: 2; }
+  .timestamp-box .ts-row { display: flex; justify-content: space-between; align-items: center; }
+  .timestamp-box .ts-label { color: var(--text-muted); }
+  .timestamp-box .ts-value { color: var(--text); font-weight: 700; }
+  .timestamp-box .ts-value.no-fix { color: var(--warning); }
+
+  /* ── GPS fix banner ── */
+  .gps-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-radius: 8px; font-size: 12px;
+    font-family: var(--mono); border: 1px solid;
+    transition: all 0.4s ease;
+  }
+  .gps-banner.fixed    { color: var(--accent);  border-color: rgba(0,232,125,0.25); background: rgba(0,232,125,0.06); }
+  .gps-banner.no-fix   { color: var(--warning); border-color: rgba(255,193,7,0.25); background: rgba(255,193,7,0.06); }
+  .gps-banner .spin    { display: inline-block; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .accuracy-bar { height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .accuracy-bar-fill { height: 100%; border-radius: 4px; background: var(--accent); width: 0%; transition: width 0.5s ease; }
+
+  .signal-row { display: flex; align-items: flex-end; gap: 3px; margin-top: 8px; }
+  .signal-bar { width: 10px; background: var(--border); border-radius: 2px; transition: background 0.3s; }
+  .signal-bar.active { background: var(--accent); }
+
+  .refresh-btn {
+    width: 100%; padding: 11px; background: transparent; color: var(--accent);
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    border: 1px solid rgba(0,232,125,0.3); border-radius: var(--radius);
+    cursor: pointer; transition: background 0.2s; text-transform: uppercase;
+  }
+  .refresh-btn:hover { background: var(--accent-glow); }
+
+  #map { flex: 1; background: #0d1520; }
+  .leaflet-tile-pane { filter: brightness(0.7) saturate(0.6) hue-rotate(180deg); }
+  .leaflet-container { background: #0d1520; }
+
+  .leaflet-popup-content-wrapper {
+    background: var(--surface) !important; color: var(--text) !important;
+    border: 1px solid var(--border) !important; border-radius: 10px !important;
+    box-shadow: var(--shadow) !important; font-family: var(--mono) !important; font-size: 12px !important;
+  }
+  .leaflet-popup-tip { background: var(--surface) !important; }
+
+  .cycle-marker {
+    width: 28px; height: 28px; background: var(--accent);
+    border: 3px solid #fff; border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(0,232,125,0.25), 0 2px 8px rgba(0,0,0,0.5);
+    animation: markerPulse 2.5s ease-in-out infinite;
+  }
+  .cycle-marker.no-fix { background: var(--warning); box-shadow: 0 0 0 4px rgba(255,193,7,0.25), 0 2px 8px rgba(0,0,0,0.5); }
+
+  @keyframes markerPulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(0,232,125,0.25), 0 2px 8px rgba(0,0,0,0.5); }
+    50%       { box-shadow: 0 0 0 10px rgba(0,232,125,0.05), 0 2px 8px rgba(0,0,0,0.5); }
+  }
+
+  @media (max-width: 650px) {
+    .sidebar { width: 100%; height: 280px; border-right: none; border-bottom: 1px solid var(--border); }
+    .main { flex-direction: column; }
   }
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
+<!-- =========================================================
+     LOGIN PAGE
+========================================================== -->
 <div id="login-page">
   <div class="login-card">
     <div class="brand">
       <div class="brand-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
           <path d="M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>
         </svg>
       </div>
-      <div><div class="brand-name">CycleTrack</div><div class="brand-sub">GPS Tracker</div></div>
+      <div>
+        <div class="brand-name">CycleTrack</div>
+        <div class="brand-sub">GPS Tracker</div>
+      </div>
     </div>
+
     <h1 class="login-heading">Welcome back</h1>
     <p class="login-subheading">Sign in to monitor your cycle's location</p>
-    <label for="username">Username</label>
-    <div class="input-wrap"><input type="text" id="username" placeholder="your_username" autocomplete="username"/></div>
-    <label for="password">Password</label>
-    <div class="input-wrap"><input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/></div>
-    <button class="btn" onclick="handleLogin()">Sign in →</button>
-    <div class="error-msg" id="error-msg">Incorrect username or password.</div>
-    <p class="login-footer">admin / cycle123 &nbsp;·&nbsp; student / track456</p>
+
+    <div>
+      <label for="username">Username</label>
+      <div class="input-wrap">
+        <input type="text" id="username" placeholder="your_username" autocomplete="username"/>
+      </div>
+      <label for="password">Password</label>
+      <div class="input-wrap">
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <button class="btn" onclick="handleLogin()">Sign in →</button>
+      <div class="error-msg" id="error-msg">Incorrect username or password. Please try again.</div>
+    </div>
+
+    <p class="login-footer">
+      Credentials: <strong style="color:var(--accent)">admin</strong> / <strong style="color:var(--accent)">cycle123</strong>
+    </p>
   </div>
 </div>
 
-<!-- DASHBOARD -->
+<!-- =========================================================
+     DASHBOARD
+========================================================== -->
 <div id="dashboard" class="hidden">
+
   <div class="topbar">
-    <div class="topbar-brand"><div class="dot"></div>CycleTrack</div>
-    <div id="wifi-status" class="status-pill searching">
-      <span class="blink"></span><span id="wifi-label">Connecting...</span>
+    <div class="topbar-brand">
+      <div class="dot"></div>
+      CycleTrack
     </div>
+
+    <!-- FIXED: 3 possible states — online / searching / offline -->
+    <div id="wifi-status" class="status-pill searching">
+      <span class="blink"></span>
+      <span id="wifi-label">Connecting...</span>
+    </div>
+
     <div class="topbar-right">
       <div class="user-info">Logged in as <span id="logged-user">—</span></div>
-      <button class="topbar-btn active" id="btn-map"   onclick="showTab('map')">📍 Map</button>
-      <button class="topbar-btn"        id="btn-admin" onclick="showTab('admin')" style="display:none">⚙️ Admin</button>
-      <button class="topbar-btn logout" onclick="handleLogout()">Logout</button>
+      <button class="logout-btn" onclick="handleLogout()">Logout</button>
     </div>
   </div>
 
-  <!-- MAP TAB -->
-  <div id="tab-map" class="main">
+  <div class="main">
     <div class="sidebar">
+
+      <!-- GPS fix banner — NEW -->
       <div class="gps-banner no-fix" id="gps-banner">
-        <span class="spin">⟳</span><span id="gps-banner-text">Waiting for GPS fix...</span>
+        <span class="spin">⟳</span>
+        <span id="gps-banner-text">Waiting for GPS fix...</span>
       </div>
+
+      <!-- Coordinates -->
       <div class="card">
         <div class="card-label">Last known location</div>
-        <div class="coord-row"><span class="coord-key">LAT</span><span class="coord-val" id="disp-lat">—</span></div>
-        <div class="coord-row"><span class="coord-key">LNG</span><span class="coord-val" id="disp-lng">—</span></div>
-        <div class="coord-row"><span class="coord-key">ALT</span><span class="coord-val" id="disp-alt">— m</span></div>
-        <div class="coord-row"><span class="coord-key">SPEED</span><span class="coord-val" id="disp-speed">0 km/h</span></div>
+        <div class="coord-row">
+          <span class="coord-key">LAT</span>
+          <span class="coord-val" id="disp-lat">—</span>
+        </div>
+        <div class="coord-row">
+          <span class="coord-key">LNG</span>
+          <span class="coord-val" id="disp-lng">—</span>
+        </div>
+        <div class="coord-row">
+          <span class="coord-key">ALT</span>
+          <span class="coord-val" id="disp-alt">— m</span>
+        </div>
+        <div class="coord-row">
+          <span class="coord-key">SPEED</span>
+          <span class="coord-val" id="disp-speed">0 km/h</span>
+        </div>
       </div>
+
+      <!-- FIXED: Timestamp card with proper IST formatting -->
       <div class="card">
         <div class="card-label">Timestamp (IST)</div>
         <div class="timestamp-box">
-          <div class="ts-row"><span class="ts-label">Date</span><span class="ts-value" id="disp-date">—</span></div>
-          <div class="ts-row"><span class="ts-label">Time</span><span class="ts-value" id="disp-time">—</span></div>
-          <div class="ts-row"><span class="ts-label">Updated</span><span class="ts-value" id="disp-updated">—</span></div>
+          <div class="ts-row">
+            <span class="ts-label">Date</span>
+            <span class="ts-value" id="disp-date">—</span>
+          </div>
+          <div class="ts-row">
+            <span class="ts-label">Time</span>
+            <span class="ts-value" id="disp-time">—</span>
+          </div>
+          <div class="ts-row">
+            <span class="ts-label">Updated</span>
+            <span class="ts-value" id="disp-updated">—</span>
+          </div>
         </div>
       </div>
+
+      <!-- GPS Signal -->
       <div class="card">
         <div class="card-label">GPS signal</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px;">Satellites: <strong style="color:var(--accent)" id="disp-sats">—</strong></div>
-        <div class="signal-row">
-          <div class="signal-bar" style="height:8px"></div><div class="signal-bar" style="height:12px"></div>
-          <div class="signal-bar" style="height:16px"></div><div class="signal-bar" style="height:20px"></div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px;">
+          Satellites locked: <strong style="color:var(--accent)" id="disp-sats">—</strong>
+        </div>
+        <div class="signal-row" id="signal-bars">
+          <div class="signal-bar" style="height:8px"></div>
+          <div class="signal-bar" style="height:12px"></div>
+          <div class="signal-bar" style="height:16px"></div>
+          <div class="signal-bar" style="height:20px"></div>
           <div class="signal-bar" style="height:24px"></div>
         </div>
         <div style="margin-top:10px">
-          <div style="font-size:12px;color:var(--text-muted)">Accuracy: <span id="disp-acc">—</span></div>
+          <div style="font-size:12px;color:var(--text-muted);">Accuracy: <span id="disp-acc">—</span></div>
           <div class="accuracy-bar"><div class="accuracy-bar-fill" id="acc-bar"></div></div>
         </div>
       </div>
+
       <button class="refresh-btn" onclick="fetchLocation()">⟳ Refresh location</button>
-      <div style="font-size:11px;color:var(--text-muted);line-height:1.7;padding:0 2px">
-        Auto-refreshes every 30s. Green = live GPS. Yellow = device off or no fix.
+
+      <div style="font-size:11px;color:var(--text-muted);line-height:1.7;padding:0 2px;">
+        Auto-refreshes every 30s. Green = live GPS fix. Yellow = last stored location (device offline or GPS searching).
       </div>
     </div>
+
     <div id="map"></div>
   </div>
+</div>
 
-  <!-- ADMIN TAB -->
-  <div id="tab-admin" class="hidden">
-  <div class="admin-body">
-
-    <!-- Device Registry -->
-    <div>
-      <div class="section-title">Device Registry</div>
-      <div class="acard" style="padding:0;overflow:hidden">
-        <div style="padding:18px 20px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-          <div><h3>Registered Devices</h3><p style="margin-bottom:0">All CycleTrack ESP32 units and their current status.</p></div>
-          <button class="btn secondary" style="width:auto;padding:9px 18px;margin-top:0" onclick="loadDeviceTable()">↻ Refresh</button>
-        </div>
-        <div style="overflow-x:auto">
-          <table class="dtable">
-            <thead><tr><th>Device ID</th><th>Label</th><th>Status</th><th>Config pending</th><th>Last seen</th><th>Actions</th></tr></thead>
-            <tbody id="device-tbody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="admin-grid">
-
-      <!-- Generate Device -->
-      <div class="acard">
-        <h3>➕ Register New Device</h3>
-        <p>Generate a unique Device ID and one-time secret password for a new ESP32. Copy the snippet and paste it into the firmware before flashing.</p>
-        <label>Device label</label>
-        <div class="input-wrap" style="margin-bottom:14px"><input type="text" id="new-label" placeholder="e.g. Cycle 03 — Block B"/></div>
-        <label>ID prefix</label>
-        <div class="input-wrap" style="margin-bottom:14px">
-          <select id="dev-prefix">
-            <option value="cycle">cycle</option><option value="bike">bike</option><option value="unit">unit</option>
-          </select>
-        </div>
-        <button class="btn" onclick="generateDevice()">Generate &amp; Register</button>
-
-        <div class="creds-box" id="gen-box">
-          <div style="font-size:11px;color:var(--warning);margin-bottom:10px;letter-spacing:.5px">⚠ Copy now — password shown only once</div>
-          <div class="creds-row">
-            <span class="creds-key">Device ID</span>
-            <span class="creds-val"><span id="gen-id">—</span><button class="cpBtn" onclick="copyText('gen-id',this)">copy</button></span>
-          </div>
-          <div class="creds-row">
-            <span class="creds-key">Secret password</span>
-            <span class="creds-val"><span id="gen-pass">—</span><button class="cpBtn" onclick="copyText('gen-pass',this)">copy</button></span>
-          </div>
-          <button class="btn secondary" style="width:100%;padding:10px;margin-top:14px" onclick="copySnippet(this)">📋 Copy .ino config snippet</button>
-        </div>
-      </div>
-
-      <!-- Push WiFi Credentials -->
-      <div class="acard">
-        <h3>📡 Push WiFi Credentials</h3>
-        <p>Send WiFi credentials to a device via Firebase. The ESP32 reads and applies them on next boot or within 15 seconds if online.</p>
-
-        <label>Target device</label>
-        <div class="input-wrap" style="margin-bottom:14px">
-          <select id="push-dev"><option value="">— select device —</option></select>
-        </div>
-
-        <label>WiFi type</label>
-        <div class="input-wrap" style="margin-bottom:14px">
-          <select id="push-type" onchange="toggleWifiType()">
-            <option value="personal">WPA2-Personal (home / hotspot)</option>
-            <option value="enterprise">WPA2-Enterprise (college WiFi)</option>
-          </select>
-        </div>
-
-        <label>WiFi SSID</label>
-        <div class="input-wrap" style="margin-bottom:14px"><input type="text" id="push-ssid" placeholder="e.g. CollegeWiFi or HomeWiFi"/></div>
-
-        <div id="identity-wrap">
-          <label>Identity (username / roll number)</label>
-          <div class="input-wrap" style="margin-bottom:14px"><input type="text" id="push-identity" placeholder="e.g. 22BCS001"/></div>
-        </div>
-
-        <label>WiFi password</label>
-        <div class="input-wrap" style="margin-bottom:14px"><input type="password" id="push-pass" placeholder="your WiFi password"/></div>
-
-        <label>CA Certificate</label>
-        <div class="input-wrap" style="margin-bottom:14px">
-          <select id="push-ca" onchange="document.getElementById('ca-wrap').classList.toggle('hidden',this.value!=='custom')">
-            <option value="none">None — skip verification (recommended)</option>
-            <option value="custom">Custom PEM</option>
-          </select>
-        </div>
-        <div id="ca-wrap" class="hidden" style="margin-bottom:14px">
-          <label>CA Certificate PEM</label>
-          <textarea id="push-pem" rows="4" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
-        </div>
-
-        <button class="btn" id="push-btn" onclick="pushCreds()">Push to Device</button>
-        <div class="pstat" id="push-stat"></div>
-        <div class="note">
-          <strong>How it works:</strong> Credentials are written to <code>/devices/{id}/config</code> in Firebase.
-          The ESP32 picks them up within 15 s (if online) or on next boot, then <strong>deletes the password</strong> from Firebase automatically.
-          The "Config pending" badge clears once applied.
-        </div>
-      </div>
-
-    </div><!-- /admin-grid -->
-
-    <!-- WiFi Profiles -->
-    <div>
-      <div class="section-title">Saved WiFi Profiles</div>
-      <div class="admin-grid">
-        <div class="acard">
-          <h3>💾 Save a Profile</h3>
-          <p>Save a reusable SSID profile so you can push to multiple devices without re-typing.</p>
-          <label>Profile name</label>
-          <div class="input-wrap" style="margin-bottom:14px"><input type="text" id="prof-name" placeholder="e.g. Main Block WiFi"/></div>
-          <label>SSID</label>
-          <div class="input-wrap" style="margin-bottom:14px"><input type="text" id="prof-ssid" placeholder="CollegeNet"/></div>
-          <label>WiFi type</label>
-          <div class="input-wrap" style="margin-bottom:0">
-            <select id="prof-type">
-              <option value="personal">WPA2-Personal</option>
-              <option value="enterprise">WPA2-Enterprise</option>
-            </select>
-          </div>
-          <label>CA Certificate</label>
-          <div class="input-wrap" style="margin-bottom:0"><select id="prof-ca"><option value="none">None</option><option value="custom">Custom PEM</option></select></div>
-          <button class="btn secondary" style="width:100%;padding:10px;margin-top:14px" onclick="saveProfile()">Save Profile</button>
-          <div class="pstat" id="prof-stat"></div>
-        </div>
-        <div class="acard">
-          <h3>📋 Saved Profiles</h3>
-          <p>Click ↗ to auto-fill the Push WiFi form.</p>
-          <div id="prof-list"><div style="color:var(--text-muted);font-size:13px">No profiles yet.</div></div>
-        </div>
-      </div>
-    </div>
-
-  </div></div><!-- /tab-admin -->
-</div><!-- /dashboard -->
-
+<!-- =========================================================
+     SCRIPTS
+========================================================== -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-/* ── CONFIG ── */
-const FB_BASE  = "https://cycletrack-gps-299ba-default-rtdb.asia-southeast1.firebasedatabase.app";
-const FB_TOKEN = "gmGs1UWS9yJT70tcgMuOvPDi7jgca8BnITQfxKgG";
-const WATCH_ID = "cycle001";
-const FB_LOC   = `${FB_BASE}/devices/${WATCH_ID}/location.json?auth=${FB_TOKEN}`;
-const STALE_MS = 2 * 60 * 1000;
-const USE_MOCK = false;
-const MOCK = { lat:28.6139, lng:77.2090, alt:215, speed:0, satellites:7, accuracy:4.2, wifi:true, gpsFixed:true, timestamp:Date.now() };
-const USERS = {
-  admin:   { password:"cycle123",  role:"admin"   },
-  student: { password:"track456",  role:"student" }
-};
+/* ============================================================
+   CONFIGURATION — update FIREBASE_URL with your project URL
+============================================================ */
+  const FIREBASE_URL  = "https://cycletrack-gps-299ba-default-rtdb.asia-southeast1.firebasedatabase.app/devices/cycle001/location.json";
+  const USE_MOCK_DATA = false;   // ← set true only for offline testing
 
-/* ── STATE ── */
-let map, marker, accCircle, currentUser, currentRole, refreshTimer;
-let lastGenId='', lastGenPass='';
+  const MOCK_DATA = {
+    lat: 28.6139, lng: 77.2090, alt: 215, speed: 0,
+    satellites: 7, accuracy: 4.2,
+    wifi: true, gpsFixed: true,
+    timestamp: Date.now()
+  };
 
-/* ── FIREBASE HELPERS ── */
-const fbUrl = p => `${FB_BASE}${p}?auth=${FB_TOKEN}`;
-async function fbGet(p){ const r=await fetch(fbUrl(p)); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
-async function fbPut(p,d){ const r=await fetch(fbUrl(p),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
-async function fbDel(p){ await fetch(fbUrl(p),{method:'DELETE'}); }
+  const USERS = {
+    "admin":   "cycle123",
+    "student": "track456"
+  };
 
-/* ── AUTH ── */
-function handleLogin(){
-  const u=document.getElementById('username').value.trim();
-  const p=document.getElementById('password').value;
-  const user=USERS[u];
-  if(user && user.password===p){
-    currentUser=u; currentRole=user.role;
-    document.getElementById('error-msg').style.display='none';
-    document.getElementById('login-page').classList.add('hidden');
-    document.getElementById('dashboard').classList.remove('hidden');
-    document.getElementById('logged-user').textContent=u;
-    if(currentRole==='admin') document.getElementById('btn-admin').style.display='';
-    showTab('map'); initMap(); fetchLocation();
-    refreshTimer=setInterval(fetchLocation,30000);
-  } else {
-    document.getElementById('error-msg').style.display='block';
+/* ============================================================
+   STATE
+============================================================ */
+  let map, marker, accuracyCircle;
+  let currentUser = null;
+  let refreshInterval = null;
+  let lastData = null;
+
+/* ============================================================
+   AUTH
+============================================================ */
+  function handleLogin() {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value;
+    if (USERS[u] && USERS[u] === p) {
+      currentUser = u;
+      document.getElementById('error-msg').style.display = 'none';
+      document.getElementById('login-page').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      document.getElementById('logged-user').textContent = u;
+      initMap();
+      fetchLocation();
+      refreshInterval = setInterval(fetchLocation, 30000);
+    } else {
+      document.getElementById('error-msg').style.display = 'block';
+    }
   }
-}
-function handleLogout(){
-  currentUser=null; currentRole=null; clearInterval(refreshTimer);
-  document.getElementById('dashboard').classList.add('hidden');
-  document.getElementById('login-page').classList.remove('hidden');
-  document.getElementById('password').value='';
-  document.getElementById('btn-admin').style.display='none';
-}
-document.addEventListener('keydown',e=>{
-  if(e.key==='Enter' && !document.getElementById('login-page').classList.contains('hidden')) handleLogin();
-});
 
-/* ── TABS ── */
-function showTab(t){
-  ['map','admin'].forEach(n=>{
-    document.getElementById('tab-'+n).classList.toggle('hidden',n!==t);
-    document.getElementById('btn-'+n).classList.toggle('active',n===t);
+  function handleLogout() {
+    currentUser = null;
+    clearInterval(refreshInterval);
+    document.getElementById('dashboard').classList.add('hidden');
+    document.getElementById('login-page').classList.remove('hidden');
+    document.getElementById('password').value = '';
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !document.getElementById('login-page').classList.contains('hidden'))
+      handleLogin();
   });
-  if(t==='admin') loadAdminPanel();
-}
 
-/* ── MAP ── */
-function initMap(){
-  if(map) return;
-  map=L.map('map',{zoomControl:true}).setView([28.6139,77.2090],16);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);
-  const icon=L.divIcon({className:'',html:'<div class="cycle-marker" id="map-marker-dot"></div>',iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16]});
-  marker=L.marker([28.6139,77.2090],{icon}).addTo(map);
-  accCircle=L.circle([28.6139,77.2090],{radius:5,color:'#00e87d',fillColor:'#00e87d',fillOpacity:.08,weight:1}).addTo(map);
-}
+/* ============================================================
+   MAP INIT
+============================================================ */
+  function initMap() {
+    if (map) return;
+    map = L.map('map', { zoomControl: true }).setView([28.6139, 77.2090], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors', maxZoom: 19
+    }).addTo(map);
 
-/* ── FETCH ── */
-async function fetchLocation(){
-  try{
-    let data;
-    if(USE_MOCK){ data={...MOCK,lat:MOCK.lat+(Math.random()-.5)*.0002,timestamp:Date.now()}; }
-    else{
-      const r=await fetch(FB_LOC); if(!r.ok) throw new Error('HTTP '+r.status);
-      data=await r.json(); if(!data) throw new Error('No data yet');
-    }
-    updateUI(data);
-  } catch(e){ showFetchError(e.message); }
-}
-
-/* ── UI UPDATE ── */
-function updateUI(d){
-  const ts=new Date(d.timestamp);
-  const validDate=!isNaN(ts.getTime())&&ts.getFullYear()>2020;
-  const ageMs=validDate?(Date.now()-ts.getTime()):Infinity;
-  const alive=ageMs<STALE_MS;
-  const wifiOn=alive&&d.wifi===true;
-  const gpsFix=alive&&(d.gpsFixed===true||(d.lat&&d.lat!==0&&d.gpsFixed!==false));
-
-  // Banner
-  const bn=document.getElementById('gps-banner'), bt=document.getElementById('gps-banner-text');
-  if(!alive){ bn.className='gps-banner no-fix'; bt.innerHTML='⏻ Device powered off'; }
-  else if(gpsFix){ bn.className='gps-banner fixed'; bt.innerHTML='✓ GPS fix acquired'; }
-  else{ bn.className='gps-banner no-fix'; bt.innerHTML='<span class="spin">⟳</span> Searching for GPS fix...'; }
-
-  // Pill
-  const pill=document.getElementById('wifi-status'), lbl=document.getElementById('wifi-label');
-  if(!alive){ pill.className='status-pill offline'; lbl.textContent='Device off — last known location'; }
-  else if(wifiOn&&gpsFix){ pill.className='status-pill online'; lbl.textContent='Device online — live GPS'; }
-  else if(wifiOn&&!gpsFix){ pill.className='status-pill searching'; lbl.textContent='Wi-Fi on — searching GPS'; }
-  else{ pill.className='status-pill offline'; lbl.textContent='Offline — last known location'; }
-
-  // Map marker
-  if(gpsFix&&d.lat&&d.lng){
-    const pos=[d.lat,d.lng]; marker.setLatLng(pos); accCircle.setLatLng(pos); accCircle.setRadius(d.accuracy||5); map.panTo(pos);
-    const dot=document.getElementById('map-marker-dot'); if(dot) dot.className='cycle-marker';
-    marker.bindPopup(`<b style="color:#00e87d">Your Cycle</b><br>Lat:${d.lat.toFixed(6)}<br>Lng:${d.lng.toFixed(6)}<br>${(wifiOn&&gpsFix)?'🟢 Live':'🟡 Last known'}`);
-  } else { const dot=document.getElementById('map-marker-dot'); if(dot) dot.className='cycle-marker no-fix'; }
-
-  document.getElementById('disp-lat').textContent=d.lat?d.lat.toFixed(6)+'°':'—';
-  document.getElementById('disp-lng').textContent=d.lng?d.lng.toFixed(6)+'°':'—';
-  document.getElementById('disp-alt').textContent=d.alt?d.alt.toFixed(1)+' m':'— m';
-  document.getElementById('disp-speed').textContent=d.speed!==undefined?d.speed.toFixed(1)+' km/h':'0 km/h';
-
-  const sats=d.satellites||0;
-  document.getElementById('disp-sats').textContent=gpsFix?sats:'0 (no fix)';
-  document.querySelectorAll('.signal-bar').forEach((b,i)=>b.classList.toggle('active',i<(gpsFix?Math.min(5,Math.round(sats/2)):0)));
-
-  const acc=d.accuracy||(gpsFix?5:99);
-  document.getElementById('disp-acc').textContent=gpsFix?'± '+acc.toFixed(1)+' m':'No fix';
-  document.getElementById('acc-bar').style.width=(gpsFix?Math.max(0,Math.min(100,100-(acc/20)*100)):0)+'%';
-
-  if(validDate){
-    document.getElementById('disp-date').textContent=ts.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Asia/Kolkata'});
-    document.getElementById('disp-time').textContent=ts.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true,timeZone:'Asia/Kolkata'});
-    const ds=Math.floor(ageMs/1000), dm=Math.floor(ds/60), dh=Math.floor(dm/60);
-    const ago=ds<10?'just now':ds<60?ds+' sec ago':dm<60?dm+' min ago':dh+' hr ago';
-    document.getElementById('disp-updated').textContent=ago;
-    document.getElementById('disp-updated').className='ts-value'+(!alive||dm>5?' no-fix':'');
-  } else {
-    document.getElementById('disp-date').textContent='NTP not synced';
-    document.getElementById('disp-time').textContent='—';
-    document.getElementById('disp-updated').textContent='—';
-    document.getElementById('disp-date').className='ts-value no-fix';
-  }
-}
-function showFetchError(m){
-  document.getElementById('wifi-status').className='status-pill offline';
-  document.getElementById('wifi-label').textContent='Cannot reach Firebase';
-  console.warn('Firebase fetch error:',m);
-}
-
-/* ════════════════════════════════════
-   ADMIN
-════════════════════════════════════ */
-async function loadAdminPanel(){ await loadDeviceTable(); loadProfiles(); }
-
-/* ── Device Table ── */
-async function loadDeviceTable(){
-  const tb=document.getElementById('device-tbody');
-  tb.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr>`;
-  try{
-    const devs=await fbGet('/devices.json');
-    const sel=document.getElementById('push-dev');
-    const prev=sel.value;
-    sel.innerHTML='<option value="">— select device —</option>';
-    if(!devs){ tb.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">No devices yet.</td></tr>`; return; }
-    let rows='';
-    for(const [id,data] of Object.entries(devs)){
-      const meta=data.meta||{}, loc=data.location||{}, cfg=data.config||{};
-      const label=meta.label||id;
-      const ts=loc.timestamp?new Date(loc.timestamp):null;
-      const alive=ts&&(Date.now()-ts.getTime())<STALE_MS;
-      const hasCfg=cfg.ssid&&!cfg.applied;
-      const statusBadge=alive?`<span class="badge on"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span> Online</span>`:`<span class="badge off">Offline</span>`;
-      const cfgBadge=hasCfg?`<span class="badge pend">Pending apply</span>`:`<span class="badge off" style="opacity:.5">—</span>`;
-      const lastSeen=ts?ts.toLocaleString('en-IN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Kolkata'}):'—';
-      rows+=`<tr>
-        <td style="font-family:var(--mono);color:var(--accent)">${id}</td>
-        <td>${label}</td><td>${statusBadge}</td><td>${cfgBadge}</td>
-        <td style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">${lastSeen}</td>
-        <td style="display:flex;gap:6px">
-          <button class="iBtn go" title="Push WiFi" onclick="quickPush('${id}')">📡</button>
-          <button class="iBtn" title="Delete" onclick="delDevice('${id}')">🗑</button>
-        </td></tr>`;
-      sel.innerHTML+=`<option value="${id}">${id} — ${label}</option>`;
-    }
-    tb.innerHTML=rows||`<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">No devices.</td></tr>`;
-    if(prev) sel.value=prev;
-  } catch(e){ tb.innerHTML=`<tr><td colspan="6" style="color:var(--danger);padding:20px">Error: ${e.message}</td></tr>`; }
-}
-
-/* ── WiFi type toggle ── */
-function toggleWifiType(){
-  const isEnt=document.getElementById('push-type').value==='enterprise';
-  document.getElementById('identity-wrap').classList.toggle('hidden',!isEnt);
-  if(!isEnt) document.getElementById('push-identity').value='';
-}
-
-/* ── Generate Device ── */
-function rnd(len,chars){ let s=''; for(let i=0;i<len;i++) s+=chars[Math.floor(Math.random()*chars.length)]; return s; }
-function genId(prefix){ return prefix+String(Math.floor(Math.random()*900)+100); }
-function genPass(){
-  const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return rnd(3,A)+'-'+rnd(6,A)+'-'+rnd(3,A);
-}
-
-async function generateDevice(){
-  const label=document.getElementById('new-label').value.trim();
-  const prefix=document.getElementById('dev-prefix').value;
-  if(!label){ alert('Please enter a device label.'); return; }
-  let id=genId(prefix);
-  const existing=await fbGet('/devices.json').catch(()=>null)||{};
-  let tries=0; while(existing[id]&&tries++<20) id=genId(prefix);
-  const pass=genPass();
-  lastGenId=id; lastGenPass=pass;
-  await fbPut(`/devices/${id}/meta.json`,{ label, createdAt:Date.now(), createdBy:currentUser, devicePassword:pass });
-  document.getElementById('gen-id').textContent=id;
-  document.getElementById('gen-pass').textContent=pass;
-  document.getElementById('gen-box').classList.add('show');
-  loadDeviceTable();
-}
-
-function copyText(elId, btn){
-  navigator.clipboard.writeText(document.getElementById(elId).textContent.trim())
-    .then(()=>{ const o=btn.textContent; btn.textContent='✓'; setTimeout(()=>btn.textContent=o,1500); });
-}
-function copySnippet(btn){
-  if(!lastGenId) return;
-  const s=`/* ── CycleTrack Device Config ─────────────────── */\nconst char* DEVICE_ID       = "${lastGenId}";\nconst char* DEVICE_PASSWORD = "${lastGenPass}";\n/* ──────────────────────────────────────────────── */`;
-  navigator.clipboard.writeText(s).then(()=>{ btn.textContent='✓ Copied!'; setTimeout(()=>btn.textContent='📋 Copy .ino config snippet',1800); });
-}
-
-async function delDevice(id){
-  if(!confirm(`Delete device "${id}" and all its data?`)) return;
-  await fbDel(`/devices/${id}.json`); loadDeviceTable();
-}
-
-/* ── Push WiFi Credentials ── */
-function quickPush(id){
-  showTab('admin');
-  document.getElementById('push-dev').value=id;
-  setTimeout(()=>{ document.getElementById('push-ssid').scrollIntoView({behavior:'smooth',block:'center'}); document.getElementById('push-ssid').focus(); },100);
-}
-
-async function pushCreds(){
-  const devId   = document.getElementById('push-dev').value;
-  const ssid    = document.getElementById('push-ssid').value.trim();
-  const wtype   = document.getElementById('push-type').value;
-  const identity= wtype==='enterprise' ? document.getElementById('push-identity').value.trim() : '';
-  const pass    = document.getElementById('push-pass').value;
-  const caMode  = document.getElementById('push-ca').value;
-  const pem     = caMode==='custom' ? document.getElementById('push-pem').value.trim() : '';
-
-  if(!devId)                              return setPushStat('err','Select a target device.');
-  if(!ssid)                               return setPushStat('err','SSID cannot be empty.');
-  if(!pass)                               return setPushStat('err','Password cannot be empty.');
-  if(wtype==='enterprise' && !identity)   return setPushStat('err','Identity is required for WPA2-Enterprise.');
-
-  setPushStat('loading','<span class="spin2">⟳</span> Writing to Firebase…');
-  document.getElementById('push-btn').disabled=true;
-  try{
-    await fbPut(`/devices/${devId}/config.json`,{
-      ssid, identity, password:pass, ca:caMode, caPem:pem,
-      pushedAt:Date.now(), pushedBy:currentUser, applied:false
+    const cycleIcon = L.divIcon({
+      className: '', html: '<div class="cycle-marker" id="map-marker-dot"></div>',
+      iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16]
     });
-    setPushStat('ok',`✓ Pushed to <strong>${devId}</strong>. Device will apply within 15 s (if online) or on next boot.`);
-    document.getElementById('push-pass').value='';
-    loadDeviceTable();
-  } catch(e){ setPushStat('err','✗ Failed: '+e.message); }
-  finally{ document.getElementById('push-btn').disabled=false; }
-}
-function setPushStat(t,m){ const el=document.getElementById('push-stat'); el.style.display='block'; el.className='pstat '+t; el.innerHTML=m; }
 
-/* ── WiFi Profiles ── */
-function getProfiles(){ try{ return JSON.parse(localStorage.getItem('ct_profiles')||'{}'); } catch{ return {}; } }
-function saveProfile(){
-  const name=document.getElementById('prof-name').value.trim();
-  const ssid=document.getElementById('prof-ssid').value.trim();
-  const type=document.getElementById('prof-type').value;
-  const ca=document.getElementById('prof-ca').value;
-  const s=document.getElementById('prof-stat');
-  if(!name||!ssid){ s.style.display='block'; s.className='pstat err'; s.textContent='Name and SSID required.'; return; }
-  const p=getProfiles(); p[name]={ssid,type,ca,savedAt:Date.now()};
-  localStorage.setItem('ct_profiles',JSON.stringify(p));
-  s.style.display='block'; s.className='pstat ok'; s.textContent='✓ Saved.';
-  document.getElementById('prof-name').value=''; document.getElementById('prof-ssid').value='';
-  loadProfiles();
-}
-function loadProfiles(){
-  const p=getProfiles(), keys=Object.keys(p), c=document.getElementById('prof-list');
-  if(!keys.length){ c.innerHTML='<div style="color:var(--text-muted);font-size:13px">No profiles yet.</div>'; return; }
-  c.innerHTML=keys.map(n=>{
-    const pr=p[n];
-    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <div><div style="font-family:var(--mono);font-size:13px;color:var(--text)">${n}</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">SSID: ${pr.ssid} · Type: ${pr.type||'enterprise'} · CA: ${pr.ca}</div></div>
-      <div style="display:flex;gap:6px">
-        <button class="iBtn go" title="Use" onclick="applyProfile('${n}')">↗</button>
-        <button class="iBtn" title="Delete" onclick="delProfile('${n}')">✕</button>
-      </div></div>`;
-  }).join('');
-}
-function applyProfile(n){
-  const p=getProfiles()[n]; if(!p) return;
-  document.getElementById('push-ssid').value=p.ssid;
-  document.getElementById('push-type').value=p.type||'enterprise';
-  document.getElementById('push-ca').value=p.ca;
-  document.getElementById('ca-wrap').classList.toggle('hidden',p.ca!=='custom');
-  toggleWifiType();
-  showTab('admin');
-  setTimeout(()=>document.getElementById('push-identity').focus(),100);
-}
-function delProfile(n){ if(!confirm(`Delete profile "${n}"?`)) return; const p=getProfiles(); delete p[n]; localStorage.setItem('ct_profiles',JSON.stringify(p)); loadProfiles(); }
+    marker = L.marker([28.6139, 77.2090], { icon: cycleIcon }).addTo(map);
+    accuracyCircle = L.circle([28.6139, 77.2090], {
+      radius: 5, color: '#00e87d', fillColor: '#00e87d',
+      fillOpacity: 0.08, weight: 1
+    }).addTo(map);
+  }
+
+/* ============================================================
+   DATA FETCH
+============================================================ */
+  async function fetchLocation() {
+    try {
+      let data;
+      if (USE_MOCK_DATA) {
+        data = { ...MOCK_DATA, lat: MOCK_DATA.lat + (Math.random()-0.5)*0.0002, timestamp: Date.now() };
+      } else {
+        const res = await fetch(FIREBASE_URL);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        data = await res.json();
+        if (!data) throw new Error('No data in Firebase yet');
+      }
+      lastData = data;
+      updateUI(data);
+    } catch (err) {
+      console.error('Fetch failed:', err);
+      showFetchError(err.message);
+    }
+  }
+
+/* ============================================================
+   UI UPDATE — FIXED date/time + status logic
+============================================================ */
+  function updateUI(d) {
+    // ── Derive clean states ──
+    const wifiOn  = d.wifi === true;
+    const gpsFixed = d.gpsFixed === true || (d.lat && d.lat !== 0 && d.gpsFixed !== false);
+
+    // ── GPS fix banner ──
+    const banner     = document.getElementById('gps-banner');
+    const bannerText = document.getElementById('gps-banner-text');
+    if (gpsFixed) {
+      banner.className = 'gps-banner fixed';
+      bannerText.innerHTML = '✓ GPS fix acquired';
+    } else {
+      banner.className = 'gps-banner no-fix';
+      bannerText.innerHTML = '<span class="spin">⟳</span> Searching for GPS fix...';
+    }
+
+    // ── WiFi + GPS status pill — 3 distinct states ──
+    const pill  = document.getElementById('wifi-status');
+    const label = document.getElementById('wifi-label');
+    if (wifiOn && gpsFixed) {
+      // Best case: both connected
+      pill.className = 'status-pill online';
+      label.textContent = 'Device online — live GPS';
+    } else if (wifiOn && !gpsFixed) {
+      // WiFi connected but GPS still searching
+      pill.className = 'status-pill searching';
+      label.textContent = 'Wi-Fi on — searching GPS';
+    } else {
+      // Neither — offline or can't reach Firebase
+      pill.className = 'status-pill offline';
+      label.textContent = 'Offline — last known location';
+    }
+
+    // ── Map update (only if we have real coords) ──
+    if (gpsFixed && d.lat && d.lng) {
+      const pos = [d.lat, d.lng];
+      marker.setLatLng(pos);
+      accuracyCircle.setLatLng(pos);
+      accuracyCircle.setRadius(d.accuracy || 5);
+      map.panTo(pos);
+
+      // Update marker color
+      const dot = document.getElementById('map-marker-dot');
+      if (dot) dot.className = 'cycle-marker';
+
+      marker.bindPopup(
+        `<b style="color:#00e87d">Your Cycle</b><br>
+         Lat: ${d.lat.toFixed(6)}<br>
+         Lng: ${d.lng.toFixed(6)}<br>
+         ${(wifiOn && gpsFixed) ? '🟢 Live' : '🟡 Last known'}`
+      );
+    } else {
+      const dot = document.getElementById('map-marker-dot');
+      if (dot) dot.className = 'cycle-marker no-fix';
+    }
+
+    // ── Coordinates ──
+    document.getElementById('disp-lat').textContent   = d.lat ? d.lat.toFixed(6) + '°' : '—';
+    document.getElementById('disp-lng').textContent   = d.lng ? d.lng.toFixed(6) + '°' : '—';
+    document.getElementById('disp-alt').textContent   = d.alt ? d.alt.toFixed(1) + ' m' : '— m';
+    document.getElementById('disp-speed').textContent = d.speed !== undefined ? d.speed.toFixed(1) + ' km/h' : '0 km/h';
+
+    // ── Satellites + signal bars ──
+    const sats = d.satellites || 0;
+    document.getElementById('disp-sats').textContent = gpsFixed ? sats : '0 (no fix)';
+    const bars = document.querySelectorAll('.signal-bar');
+    const activeBars = gpsFixed ? Math.min(5, Math.round(sats / 2)) : 0;
+    bars.forEach((b, i) => b.classList.toggle('active', i < activeBars));
+
+    // ── Accuracy bar ──
+    const acc = d.accuracy || (gpsFixed ? 5 : 99);
+    document.getElementById('disp-acc').textContent = gpsFixed ? '± ' + acc.toFixed(1) + ' m' : 'No fix';
+    const pct = gpsFixed ? Math.max(0, Math.min(100, 100 - (acc / 20) * 100)) : 0;
+    document.getElementById('acc-bar').style.width = pct + '%';
+
+    /* ────────────────────────────────────────────────────────────
+       FIXED: Timestamp display
+       The ESP32 now sends a real Unix timestamp in milliseconds
+       from NTP. We convert it to IST (UTC+5:30) for display.
+    ──────────────────────────────────────────────────────────── */
+    const ts = new Date(d.timestamp);
+    const isValidDate = !isNaN(ts.getTime()) && ts.getFullYear() > 2020;
+
+    if (isValidDate) {
+      // Format in IST locale
+      const dateStr = ts.toLocaleDateString('en-IN', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        timeZone: 'Asia/Kolkata'
+      });
+      const timeStr = ts.toLocaleTimeString('en-IN', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: true, timeZone: 'Asia/Kolkata'
+      });
+
+      const now = new Date();
+      const diffMs  = now - ts;
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHr  = Math.floor(diffMin / 60);
+
+      let agoStr;
+      if (diffSec < 10)       agoStr = 'just now';
+      else if (diffSec < 60)  agoStr = diffSec + ' sec ago';
+      else if (diffMin < 60)  agoStr = diffMin + ' min ago';
+      else                    agoStr = diffHr + ' hr ago';
+
+      document.getElementById('disp-date').textContent    = dateStr;
+      document.getElementById('disp-time').textContent    = timeStr;
+      document.getElementById('disp-updated').textContent = agoStr;
+
+      // Color the "updated" value based on freshness
+      const updEl = document.getElementById('disp-updated');
+      updEl.className = 'ts-value' + (diffMin > 5 ? ' no-fix' : '');
+    } else {
+      // Fallback if NTP wasn't synced on ESP32 side
+      document.getElementById('disp-date').textContent    = 'NTP not synced';
+      document.getElementById('disp-time').textContent    = '—';
+      document.getElementById('disp-updated').textContent = '—';
+      document.getElementById('disp-date').className = 'ts-value no-fix';
+    }
+  }
+
+/* ============================================================
+   ERROR STATE
+============================================================ */
+  function showFetchError(msg) {
+    document.getElementById('wifi-status').className = 'status-pill offline';
+    document.getElementById('wifi-label').textContent = 'Cannot reach Firebase';
+    console.warn('Firebase error:', msg);
+  }
 </script>
 </body>
 </html>
