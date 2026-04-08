@@ -112,6 +112,7 @@
   .acard label:first-of-type{margin-top:0}
   .acard input,.acard select,.acard textarea{padding:11px 14px;font-size:13px}
   .acard textarea{resize:vertical;font-size:11px;line-height:1.5}
+  .opt-tag{font-size:9px;background:rgba(97,125,153,.15);color:var(--text-muted);border:1px solid var(--border);border-radius:4px;padding:1px 5px;margin-left:6px;letter-spacing:.5px;vertical-align:middle;text-transform:none}
 
   /* device table */
   .dtable{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
@@ -292,22 +293,36 @@
       <!-- Push WiFi Credentials -->
       <div class="acard">
         <h3>📡 Push WiFi Credentials</h3>
-        <p>Send WPA2-Enterprise (college WiFi) credentials to a device via Firebase. The ESP32 reads and applies them on next boot.</p>
+        <p>Send WiFi credentials to a device via Firebase. The ESP32 reads and applies them on next boot or within 15 seconds if online.</p>
 
         <label>Target device</label>
         <div class="input-wrap" style="margin-bottom:14px">
           <select id="push-dev"><option value="">— select device —</option></select>
         </div>
+
+        <label>WiFi type</label>
+        <div class="input-wrap" style="margin-bottom:14px">
+          <select id="push-type" onchange="toggleWifiType()">
+            <option value="personal">WPA2-Personal (home / hotspot)</option>
+            <option value="enterprise">WPA2-Enterprise (college WiFi)</option>
+          </select>
+        </div>
+
         <label>WiFi SSID</label>
-        <div class="input-wrap" style="margin-bottom:14px"><input type="text" id="push-ssid" placeholder="e.g. CollegeWiFi"/></div>
-        <label>Identity (username / roll number)</label>
-        <div class="input-wrap" style="margin-bottom:14px"><input type="text" id="push-identity" placeholder="e.g. 22BCS001"/></div>
+        <div class="input-wrap" style="margin-bottom:14px"><input type="text" id="push-ssid" placeholder="e.g. CollegeWiFi or HomeWiFi"/></div>
+
+        <div id="identity-wrap">
+          <label>Identity (username / roll number)</label>
+          <div class="input-wrap" style="margin-bottom:14px"><input type="text" id="push-identity" placeholder="e.g. 22BCS001"/></div>
+        </div>
+
         <label>WiFi password</label>
         <div class="input-wrap" style="margin-bottom:14px"><input type="password" id="push-pass" placeholder="your WiFi password"/></div>
+
         <label>CA Certificate</label>
         <div class="input-wrap" style="margin-bottom:14px">
           <select id="push-ca" onchange="document.getElementById('ca-wrap').classList.toggle('hidden',this.value!=='custom')">
-            <option value="none">None — skip verification (matches your college setting)</option>
+            <option value="none">None — skip verification (recommended)</option>
             <option value="custom">Custom PEM</option>
           </select>
         </div>
@@ -315,12 +330,13 @@
           <label>CA Certificate PEM</label>
           <textarea id="push-pem" rows="4" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
         </div>
+
         <button class="btn" id="push-btn" onclick="pushCreds()">Push to Device</button>
         <div class="pstat" id="push-stat"></div>
         <div class="note">
           <strong>How it works:</strong> Credentials are written to <code>/devices/{id}/config</code> in Firebase.
-          The ESP32 reads them on boot, connects, then <strong>deletes the password</strong> from Firebase for security.
-          The "Config pending" badge in the table clears once applied.
+          The ESP32 picks them up within 15 s (if online) or on next boot, then <strong>deletes the password</strong> from Firebase automatically.
+          The "Config pending" badge clears once applied.
         </div>
       </div>
 
@@ -337,6 +353,13 @@
           <div class="input-wrap" style="margin-bottom:14px"><input type="text" id="prof-name" placeholder="e.g. Main Block WiFi"/></div>
           <label>SSID</label>
           <div class="input-wrap" style="margin-bottom:14px"><input type="text" id="prof-ssid" placeholder="CollegeNet"/></div>
+          <label>WiFi type</label>
+          <div class="input-wrap" style="margin-bottom:0">
+            <select id="prof-type">
+              <option value="personal">WPA2-Personal</option>
+              <option value="enterprise">WPA2-Enterprise</option>
+            </select>
+          </div>
           <label>CA Certificate</label>
           <div class="input-wrap" style="margin-bottom:0"><select id="prof-ca"><option value="none">None</option><option value="custom">Custom PEM</option></select></div>
           <button class="btn secondary" style="width:100%;padding:10px;margin-top:14px" onclick="saveProfile()">Save Profile</button>
@@ -359,7 +382,7 @@
 const FB_BASE  = "https://cycletrack-gps-299ba-default-rtdb.asia-southeast1.firebasedatabase.app";
 const FB_TOKEN = "gmGs1UWS9yJT70tcgMuOvPDi7jgca8BnITQfxKgG";
 const WATCH_ID = "cycle001";
-const FB_LOC   = `${FB_BASE}/devices/${WATCH_ID}/location.json`;
+const FB_LOC   = `${FB_BASE}/devices/${WATCH_ID}/location.json?auth=${FB_TOKEN}`;
 const STALE_MS = 2 * 60 * 1000;
 const USE_MOCK = false;
 const MOCK = { lat:28.6139, lng:77.2090, alt:215, speed:0, satellites:7, accuracy:4.2, wifi:true, gpsFixed:true, timestamp:Date.now() };
@@ -372,7 +395,7 @@ const USERS = {
 let map, marker, accCircle, currentUser, currentRole, refreshTimer;
 let lastGenId='', lastGenPass='';
 
-/* ── FIREBASE ── */
+/* ── FIREBASE HELPERS ── */
 const fbUrl = p => `${FB_BASE}${p}?auth=${FB_TOKEN}`;
 async function fbGet(p){ const r=await fetch(fbUrl(p)); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
 async function fbPut(p,d){ const r=await fetch(fbUrl(p),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
@@ -461,7 +484,7 @@ function updateUI(d){
   else if(wifiOn&&!gpsFix){ pill.className='status-pill searching'; lbl.textContent='Wi-Fi on — searching GPS'; }
   else{ pill.className='status-pill offline'; lbl.textContent='Offline — last known location'; }
 
-  // Map
+  // Map marker
   if(gpsFix&&d.lat&&d.lng){
     const pos=[d.lat,d.lng]; marker.setLatLng(pos); accCircle.setLatLng(pos); accCircle.setRadius(d.accuracy||5); map.panTo(pos);
     const dot=document.getElementById('map-marker-dot'); if(dot) dot.className='cycle-marker';
@@ -498,7 +521,7 @@ function updateUI(d){
 function showFetchError(m){
   document.getElementById('wifi-status').className='status-pill offline';
   document.getElementById('wifi-label').textContent='Cannot reach Firebase';
-  console.warn('Firebase:',m);
+  console.warn('Firebase fetch error:',m);
 }
 
 /* ════════════════════════════════════
@@ -522,8 +545,8 @@ async function loadDeviceTable(){
       const label=meta.label||id;
       const ts=loc.timestamp?new Date(loc.timestamp):null;
       const alive=ts&&(Date.now()-ts.getTime())<STALE_MS;
-      const hasCfg=!!cfg.ssid;
-      const statusBadge=alive?`<span class="badge on"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span>Online</span>`:`<span class="badge off">Offline</span>`;
+      const hasCfg=cfg.ssid&&!cfg.applied;
+      const statusBadge=alive?`<span class="badge on"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span> Online</span>`:`<span class="badge off">Offline</span>`;
       const cfgBadge=hasCfg?`<span class="badge pend">Pending apply</span>`:`<span class="badge off" style="opacity:.5">—</span>`;
       const lastSeen=ts?ts.toLocaleString('en-IN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Kolkata'}):'—';
       rows+=`<tr>
@@ -539,6 +562,13 @@ async function loadDeviceTable(){
     tb.innerHTML=rows||`<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">No devices.</td></tr>`;
     if(prev) sel.value=prev;
   } catch(e){ tb.innerHTML=`<tr><td colspan="6" style="color:var(--danger);padding:20px">Error: ${e.message}</td></tr>`; }
+}
+
+/* ── WiFi type toggle ── */
+function toggleWifiType(){
+  const isEnt=document.getElementById('push-type').value==='enterprise';
+  document.getElementById('identity-wrap').classList.toggle('hidden',!isEnt);
+  if(!isEnt) document.getElementById('push-identity').value='';
 }
 
 /* ── Generate Device ── */
@@ -588,21 +618,27 @@ function quickPush(id){
 }
 
 async function pushCreds(){
-  const devId=document.getElementById('push-dev').value;
-  const ssid=document.getElementById('push-ssid').value.trim();
-  const identity=document.getElementById('push-identity').value.trim();
-  const pass=document.getElementById('push-pass').value;
-  const caMode=document.getElementById('push-ca').value;
-  const pem=caMode==='custom'?document.getElementById('push-pem').value.trim():'';
-  if(!devId)    return setPushStat('err','Select a target device.');
-  if(!ssid)     return setPushStat('err','SSID cannot be empty.');
-  if(!identity) return setPushStat('err','Identity cannot be empty.');
-  if(!pass)     return setPushStat('err','Password cannot be empty.');
+  const devId   = document.getElementById('push-dev').value;
+  const ssid    = document.getElementById('push-ssid').value.trim();
+  const wtype   = document.getElementById('push-type').value;
+  const identity= wtype==='enterprise' ? document.getElementById('push-identity').value.trim() : '';
+  const pass    = document.getElementById('push-pass').value;
+  const caMode  = document.getElementById('push-ca').value;
+  const pem     = caMode==='custom' ? document.getElementById('push-pem').value.trim() : '';
+
+  if(!devId)                              return setPushStat('err','Select a target device.');
+  if(!ssid)                               return setPushStat('err','SSID cannot be empty.');
+  if(!pass)                               return setPushStat('err','Password cannot be empty.');
+  if(wtype==='enterprise' && !identity)   return setPushStat('err','Identity is required for WPA2-Enterprise.');
+
   setPushStat('loading','<span class="spin2">⟳</span> Writing to Firebase…');
   document.getElementById('push-btn').disabled=true;
   try{
-    await fbPut(`/devices/${devId}/config.json`,{ ssid, identity, password:pass, ca:caMode, caPem:pem, pushedAt:Date.now(), pushedBy:currentUser, applied:false });
-    setPushStat('ok',`✓ Pushed to <strong>${devId}</strong>. Device will apply on next boot.`);
+    await fbPut(`/devices/${devId}/config.json`,{
+      ssid, identity, password:pass, ca:caMode, caPem:pem,
+      pushedAt:Date.now(), pushedBy:currentUser, applied:false
+    });
+    setPushStat('ok',`✓ Pushed to <strong>${devId}</strong>. Device will apply within 15 s (if online) or on next boot.`);
     document.getElementById('push-pass').value='';
     loadDeviceTable();
   } catch(e){ setPushStat('err','✗ Failed: '+e.message); }
@@ -615,10 +651,11 @@ function getProfiles(){ try{ return JSON.parse(localStorage.getItem('ct_profiles
 function saveProfile(){
   const name=document.getElementById('prof-name').value.trim();
   const ssid=document.getElementById('prof-ssid').value.trim();
+  const type=document.getElementById('prof-type').value;
   const ca=document.getElementById('prof-ca').value;
   const s=document.getElementById('prof-stat');
   if(!name||!ssid){ s.style.display='block'; s.className='pstat err'; s.textContent='Name and SSID required.'; return; }
-  const p=getProfiles(); p[name]={ssid,ca,savedAt:Date.now()};
+  const p=getProfiles(); p[name]={ssid,type,ca,savedAt:Date.now()};
   localStorage.setItem('ct_profiles',JSON.stringify(p));
   s.style.display='block'; s.className='pstat ok'; s.textContent='✓ Saved.';
   document.getElementById('prof-name').value=''; document.getElementById('prof-ssid').value='';
@@ -631,7 +668,7 @@ function loadProfiles(){
     const pr=p[n];
     return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px">
       <div><div style="font-family:var(--mono);font-size:13px;color:var(--text)">${n}</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">SSID: ${pr.ssid} · CA: ${pr.ca}</div></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">SSID: ${pr.ssid} · Type: ${pr.type||'enterprise'} · CA: ${pr.ca}</div></div>
       <div style="display:flex;gap:6px">
         <button class="iBtn go" title="Use" onclick="applyProfile('${n}')">↗</button>
         <button class="iBtn" title="Delete" onclick="delProfile('${n}')">✕</button>
@@ -641,8 +678,10 @@ function loadProfiles(){
 function applyProfile(n){
   const p=getProfiles()[n]; if(!p) return;
   document.getElementById('push-ssid').value=p.ssid;
+  document.getElementById('push-type').value=p.type||'enterprise';
   document.getElementById('push-ca').value=p.ca;
   document.getElementById('ca-wrap').classList.toggle('hidden',p.ca!=='custom');
+  toggleWifiType();
   showTab('admin');
   setTimeout(()=>document.getElementById('push-identity').focus(),100);
 }
