@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
-  /* Same styles as before – keep all CSS */
+  /* === ALL YOUR EXISTING CSS (copy from your current file) === */
   :root {
     --bg:          #070c14;
     --surface:     #0c1422;
@@ -364,6 +364,7 @@
   let map, marker, accuracyCircle;
   let currentDeviceId = null;
   let refreshInterval = null;
+  let lastFetchTime = 0;   // ← NEW: tracks when we last received data
 
   async function handleLogin() {
     const deviceId = document.getElementById('username').value.trim();
@@ -377,7 +378,6 @@
       const res = await fetch(url);
       let storedPass = await res.json();
 
-      // If no password exists yet, accept "admin" as default and store it
       if (!storedPass && password === "admin") {
         await fetch(url, { method: 'PUT', body: JSON.stringify("admin") });
         storedPass = "admin";
@@ -440,6 +440,8 @@
       const res = await fetch(url);
       const data = await res.json();
       if (!data) throw new Error("No data");
+      // Record the time we received this data (for freshness)
+      lastFetchTime = Date.now();
       updateUI(data);
     } catch (err) {
       console.warn(err);
@@ -449,14 +451,14 @@
   }
 
   function updateUI(d) {
-    const ts = new Date(d.timestamp);
-    const isValidDate = !isNaN(ts.getTime()) && ts.getFullYear() > 2020;
-    const dataAgeMs = isValidDate ? (Date.now() - ts.getTime()) : Infinity;
-    const deviceAlive = dataAgeMs < 120000;
+    // Use lastFetchTime to determine device freshness (not d.timestamp)
+    const dataAgeMs = lastFetchTime ? (Date.now() - lastFetchTime) : Infinity;
+    const deviceAlive = dataAgeMs < 120000; // 2 minutes
 
     const wifiOn = deviceAlive && d.wifi === true;
     const gpsFixed = deviceAlive && (d.gpsFixed === true || (d.lat && d.lat !== 0 && d.gpsFixed !== false));
 
+    // GPS banner
     const banner = document.getElementById('gps-banner');
     const bannerText = document.getElementById('gps-banner-text');
     if (!deviceAlive) {
@@ -470,6 +472,7 @@
       bannerText.innerHTML = '<span class="spin">⟳</span> Searching for GPS fix...';
     }
 
+    // Status pill
     const pill = document.getElementById('wifi-status');
     const label = document.getElementById('wifi-label');
     if (!deviceAlive) {
@@ -486,6 +489,7 @@
       label.textContent = 'Offline — last known';
     }
 
+    // Map
     if (gpsFixed && d.lat && d.lng) {
       const pos = [d.lat, d.lng];
       marker.setLatLng(pos);
@@ -500,6 +504,7 @@
       if (dot) dot.className = 'cycle-marker no-fix';
     }
 
+    // Coordinates & signal
     document.getElementById('disp-lat').textContent = d.lat ? d.lat.toFixed(6)+'°' : '—';
     document.getElementById('disp-lng').textContent = d.lng ? d.lng.toFixed(6)+'°' : '—';
     document.getElementById('disp-alt').textContent = d.alt ? d.alt.toFixed(1)+' m' : '— m';
@@ -514,16 +519,19 @@
     const pct = gpsFixed ? Math.max(0, Math.min(100, 100-(acc/20)*100)) : 0;
     document.getElementById('acc-bar').style.width = pct+'%';
 
-    if (isValidDate) {
+    // Display device's own timestamp (if valid)
+    const ts = new Date(d.timestamp);
+    const isValidDeviceTimestamp = !isNaN(ts.getTime()) && ts.getFullYear() > 2020;
+    if (isValidDeviceTimestamp) {
       const dateStr = ts.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric', timeZone:'Asia/Kolkata' });
       const timeStr = ts.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true, timeZone:'Asia/Kolkata' });
-      const diffSec = Math.floor(dataAgeMs/1000);
+      const diffSec = Math.floor((Date.now() - ts.getTime())/1000);
       let agoStr = diffSec<10 ? 'just now' : (diffSec<60 ? diffSec+' sec ago' : (Math.floor(diffSec/60)<60 ? Math.floor(diffSec/60)+' min ago' : Math.floor(diffSec/3600)+' hr ago'));
       document.getElementById('disp-date').textContent = dateStr;
       document.getElementById('disp-time').textContent = timeStr;
       document.getElementById('disp-updated').textContent = agoStr;
     } else {
-      document.getElementById('disp-date').textContent = 'NTP not synced';
+      document.getElementById('disp-date').textContent = 'Time not synced';
       document.getElementById('disp-time').textContent = '—';
       document.getElementById('disp-updated').textContent = '—';
     }
