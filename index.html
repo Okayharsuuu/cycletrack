@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
+  /* Same styles as before – keep all CSS */
   :root {
     --bg:          #070c14;
     --surface:     #0c1422;
@@ -221,16 +222,6 @@
   }
   .refresh-btn:hover { background: var(--accent-glow); }
 
-  .config-input {
-    width: 100%; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 6px; padding: 10px 12px; font-size: 12px;
-    font-family: var(--mono); color: var(--text); margin-bottom: 8px;
-  }
-  .config-check {
-    display: flex; gap: 8px; align-items: center; margin-bottom: 12px;
-    font-size: 12px; color: var(--text-muted);
-  }
-
   #map { flex: 1; background: #0d1520; }
   .leaflet-tile-pane { filter: brightness(0.7) saturate(0.6) hue-rotate(180deg); }
   .leaflet-container { background: #0d1520; }
@@ -295,11 +286,11 @@
       <button class="btn" onclick="handleLogin()">Sign in →</button>
       <div class="error-msg" id="error-msg">Invalid device ID or password.</div>
     </div>
-    <p class="login-footer">First time? Use default <strong>admin</strong> (then generate a password).</p>
+    <p class="login-footer">Default password: <strong>admin</strong> (first login)</p>
   </div>
 </div>
 
-<!-- DASHBOARD -->
+<!-- DASHBOARD (no configuration card) -->
 <div id="dashboard" class="hidden">
 
   <div class="topbar">
@@ -353,24 +344,6 @@
         </div>
       </div>
 
-      <!-- DEVICE CONFIGURATION CARD -->
-      <div class="card">
-        <div class="card-label">Device Configuration</div>
-        <div>
-          <input type="text" id="wifi-ssid" placeholder="Wi-Fi SSID" class="config-input">
-          <input type="text" id="wifi-identity" placeholder="EAP Identity (username)" class="config-input">
-          <input type="password" id="wifi-password" placeholder="Wi-Fi / EAP Password" class="config-input">
-          <label class="config-check">
-            <input type="checkbox" id="no-ca-cert"> No CA certificate (accept all)
-          </label>
-          <button class="refresh-btn" onclick="saveWifiConfig()">💾 Save Wi-Fi Config → ESP32</button>
-          <hr style="border-color:var(--border); margin: 12px 0;">
-          <label style="font-size:12px;color:var(--text-muted);">Device authentication</label>
-          <input type="text" id="device-id" placeholder="Device ID (e.g., cycle001)" class="config-input">
-          <button class="refresh-btn" onclick="generateDevicePassword()">🔑 Generate & Set Password</button>
-        </div>
-      </div>
-
       <button class="refresh-btn" onclick="fetchLocation()">⟳ Refresh location</button>
       <div style="font-size:11px;color:var(--text-muted);line-height:1.7;padding:0 2px;">
         Auto‑refresh every 30s. Green = live GPS. Yellow = last known.
@@ -383,16 +356,15 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // ========== ⚠️ UPDATE THESE WITH YOUR FIREBASE DETAILS ==========
+  // ========== UPDATE THESE WITH YOUR FIREBASE DETAILS ==========
   const FIREBASE_URL  = "https://cycletrack-gps-299ba-default-rtdb.asia-southeast1.firebasedatabase.app/";
   const FIREBASE_AUTH = "gmGs1UWS9yJT70tcgMuOvPDi7jgca8BnITQfxKgG";
-  // ================================================================
+  // ==============================================================
 
   let map, marker, accuracyCircle;
   let currentDeviceId = null;
   let refreshInterval = null;
 
-  // ---------- LOGIN with default "admin" fallback ----------
   async function handleLogin() {
     const deviceId = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
@@ -443,58 +415,6 @@
       handleLogin();
   });
 
-  // ---------- Save Wi-Fi config to Firebase ----------
-  async function saveWifiConfig() {
-    const deviceId = document.getElementById('device-id').value.trim();
-    if (!deviceId) {
-      alert("Enter Device ID in the configuration card first.");
-      return;
-    }
-    const config = {
-      ssid: document.getElementById('wifi-ssid').value.trim(),
-      identity: document.getElementById('wifi-identity').value.trim(),
-      password: document.getElementById('wifi-password').value,
-      caCertNone: document.getElementById('no-ca-cert').checked
-    };
-    if (!config.ssid) {
-      alert("SSID is required");
-      return;
-    }
-    const url = `${FIREBASE_URL}devices/${deviceId}/config/wifi.json?auth=${FIREBASE_AUTH}`;
-    try {
-      const res = await fetch(url, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(config)
-      });
-      if (res.ok) alert("✅ Wi-Fi config sent to device (ESP32 will read it within 60 seconds)");
-      else alert("❌ Error saving config");
-    } catch (err) {
-      alert("Network error");
-    }
-  }
-
-  async function generateDevicePassword() {
-    const deviceId = document.getElementById('device-id').value.trim();
-    if (!deviceId) {
-      alert("Enter Device ID");
-      return;
-    }
-    const newPass = Math.random().toString(36).slice(2, 10);
-    const url = `${FIREBASE_URL}devices/${deviceId}/auth/password.json?auth=${FIREBASE_AUTH}`;
-    try {
-      const res = await fetch(url, { method: 'PUT', body: JSON.stringify(newPass) });
-      if (res.ok) {
-        alert(`🔐 New password for ${deviceId}: ${newPass}\nUse this to log into the dashboard.`);
-      } else {
-        alert("Error saving password");
-      }
-    } catch (err) {
-      alert("Network error");
-    }
-  }
-
-  // ---------- Map and data ----------
   function initMap() {
     if (map) return;
     map = L.map('map', { zoomControl: true }).setView([28.6139, 77.2090], 16);
@@ -532,12 +452,11 @@
     const ts = new Date(d.timestamp);
     const isValidDate = !isNaN(ts.getTime()) && ts.getFullYear() > 2020;
     const dataAgeMs = isValidDate ? (Date.now() - ts.getTime()) : Infinity;
-    const deviceAlive = dataAgeMs < 120000;  // 2 min
+    const deviceAlive = dataAgeMs < 120000;
 
     const wifiOn = deviceAlive && d.wifi === true;
     const gpsFixed = deviceAlive && (d.gpsFixed === true || (d.lat && d.lat !== 0 && d.gpsFixed !== false));
 
-    // GPS banner
     const banner = document.getElementById('gps-banner');
     const bannerText = document.getElementById('gps-banner-text');
     if (!deviceAlive) {
@@ -551,7 +470,6 @@
       bannerText.innerHTML = '<span class="spin">⟳</span> Searching for GPS fix...';
     }
 
-    // Status pill
     const pill = document.getElementById('wifi-status');
     const label = document.getElementById('wifi-label');
     if (!deviceAlive) {
@@ -568,7 +486,6 @@
       label.textContent = 'Offline — last known';
     }
 
-    // Map
     if (gpsFixed && d.lat && d.lng) {
       const pos = [d.lat, d.lng];
       marker.setLatLng(pos);
@@ -583,7 +500,6 @@
       if (dot) dot.className = 'cycle-marker no-fix';
     }
 
-    // Coordinates & signal
     document.getElementById('disp-lat').textContent = d.lat ? d.lat.toFixed(6)+'°' : '—';
     document.getElementById('disp-lng').textContent = d.lng ? d.lng.toFixed(6)+'°' : '—';
     document.getElementById('disp-alt').textContent = d.alt ? d.alt.toFixed(1)+' m' : '— m';
@@ -598,7 +514,6 @@
     const pct = gpsFixed ? Math.max(0, Math.min(100, 100-(acc/20)*100)) : 0;
     document.getElementById('acc-bar').style.width = pct+'%';
 
-    // Timestamp
     if (isValidDate) {
       const dateStr = ts.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric', timeZone:'Asia/Kolkata' });
       const timeStr = ts.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true, timeZone:'Asia/Kolkata' });
