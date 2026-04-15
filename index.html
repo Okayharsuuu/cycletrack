@@ -410,7 +410,8 @@
 /* ============================================================
    CONFIGURATION — update FIREBASE_URL with your project URL
 ============================================================ */
-  const FIREBASE_URL  = "https://cycletrack-gps-299ba-default-rtdb.asia-southeast1.firebasedatabase.app/devices/cycle001/location.json";
+  const FIREBASE_AUTH = "gmGs1UWS9yJT70tcgMuOvPDi7jgca8BnITQfxKgG";  // same key as ESP32
+  const FIREBASE_URL  = "https://cycletrack-gps-299ba-default-rtdb.asia-southeast1.firebasedatabase.app/devices/cycle001/location.json?auth=" + FIREBASE_AUTH;
   const USE_MOCK_DATA = false;   // ← set true only for offline testing
 
   const MOCK_DATA = {
@@ -512,7 +513,7 @@
 
         if (dataAgeMs > DEVICE_STALE_MS || !data.lat || !data.lng) {
           try {
-            const fallbackRes = await fetch(FIREBASE_BASE + '/lastLocation.json');
+            const fallbackRes = await fetch(FIREBASE_BASE + '/lastLocation.json?auth=' + FIREBASE_AUTH);
             if (fallbackRes.ok) {
               const fallback = await fallbackRes.json();
               if (fallback && fallback.lat && fallback.lng) {
