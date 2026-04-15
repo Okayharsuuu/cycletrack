@@ -491,6 +491,8 @@
 /* ============================================================
    DATA FETCH
 ============================================================ */
+  const FIREBASE_BASE = "https://cycletrack-gps-299ba-default-rtdb.asia-southeast1.firebasedatabase.app/devices/cycle001";
+
   async function fetchLocation() {
     try {
       let data;
@@ -501,6 +503,30 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         data = await res.json();
         if (!data) throw new Error('No data in Firebase yet');
+
+        // ── Fallback: if location is stale (device off), pull lastLocation
+        //    which holds the last VALID GPS fix saved by the device. ──
+        const ts = new Date(data.timestamp);
+        const isValidDate = !isNaN(ts.getTime()) && ts.getFullYear() > 2020;
+        const dataAgeMs = isValidDate ? (Date.now() - ts.getTime()) : Infinity;
+
+        if (dataAgeMs > DEVICE_STALE_MS || !data.lat || !data.lng) {
+          try {
+            const fallbackRes = await fetch(FIREBASE_BASE + '/lastLocation.json');
+            if (fallbackRes.ok) {
+              const fallback = await fallbackRes.json();
+              if (fallback && fallback.lat && fallback.lng) {
+                // Merge: keep live data's timestamp/status but use fallback coords
+                data = { ...data, lat: fallback.lat, lng: fallback.lng,
+                         alt: fallback.alt, satellites: fallback.satellites,
+                         accuracy: fallback.accuracy };
+                console.log('[CycleTrack] Using lastLocation fallback:', fallback.lat, fallback.lng);
+              }
+            }
+          } catch (fbErr) {
+            console.warn('[CycleTrack] lastLocation fetch failed:', fbErr.message);
+          }
+        }
       }
       lastData = data;
       updateUI(data);
@@ -558,8 +584,10 @@
       label.textContent = 'Offline — last known location';
     }
 
-    // ── Map update (only if we have real coords) ──
-    if (gpsFixed && d.lat && d.lng) {
+    // ── Map update — ALWAYS show last known coords if available ──
+    // Even when device is offline, Firebase holds the last location; display it.
+    const hasCoords = d.lat && d.lng && d.lat !== 0 && d.lng !== 0;
+    if (hasCoords) {
       const pos = [d.lat, d.lng];
       marker.setLatLng(pos);
       accuracyCircle.setLatLng(pos);
@@ -567,24 +595,38 @@
       map.panTo(pos);
 
       const dot = document.getElementById('map-marker-dot');
-      if (dot) dot.className = 'cycle-marker';
+      // Green pulse = live fix; yellow = last known (offline or no fix)
+      if (dot) dot.className = deviceAlive && gpsFixed ? 'cycle-marker' : 'cycle-marker no-fix';
+
+      const statusLabel = deviceAlive && gpsFixed
+        ? '🟢 Live GPS'
+        : deviceAlive
+          ? '🔵 GPS searching…'
+          : '🟡 Last known (device off)';
 
       marker.bindPopup(
         `<b style="color:#00e87d">Your Cycle</b><br>
          Lat: ${d.lat.toFixed(6)}<br>
          Lng: ${d.lng.toFixed(6)}<br>
-         ${(wifiOn && gpsFixed) ? '🟢 Live' : '🟡 Last known'}`
+         ${statusLabel}`
       );
     } else {
+      // No coords in Firebase at all yet
       const dot = document.getElementById('map-marker-dot');
       if (dot) dot.className = 'cycle-marker no-fix';
     }
 
-    // ── Coordinates ──
+    // ── Coordinates — always show stored values even when device is offline ──
+    // Update card label to reflect live vs stored state
+    const coordLabel = document.querySelector('.card .card-label');
+    if (coordLabel) {
+      coordLabel.textContent = (deviceAlive && gpsFixed) ? 'Live location' : 'Last known location';
+    }
     document.getElementById('disp-lat').textContent   = d.lat ? d.lat.toFixed(6) + '°' : '—';
     document.getElementById('disp-lng').textContent   = d.lng ? d.lng.toFixed(6) + '°' : '—';
     document.getElementById('disp-alt').textContent   = d.alt ? d.alt.toFixed(1) + ' m' : '— m';
-    document.getElementById('disp-speed').textContent = d.speed !== undefined ? d.speed.toFixed(1) + ' km/h' : '0 km/h';
+    // Speed shown as 0 when device is offline (cycle is stationary)
+    document.getElementById('disp-speed').textContent = (deviceAlive && d.speed !== undefined) ? d.speed.toFixed(1) + ' km/h' : '0 km/h';
 
     // ── Satellites + signal bars ──
     const sats = d.satellites || 0;
