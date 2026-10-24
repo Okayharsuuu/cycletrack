@@ -1,0 +1,13 @@
+# Local secrets for the ESP32 (Wi-Fi password, Firebase key)
+firmware/cycletrack_esp32/config.h
+
+# Build output
+build/
+.pio/
+*.bin
+*.elf
+
+# Editors and OS
+.vscode/
+.DS_Store
+Thumbs.db

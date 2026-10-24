@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "devices": {
+      "$deviceId": {
+        "location": {
+          ".read": true,
+          ".write": true,
+          ".validate": "newData.hasChildren(['gpsFixed', 'wifi'])",
+          "lat":        { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
+          "lng":        { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
+          "alt":        { ".validate": "newData.isNumber()" },
+          "speed":      { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "satellites": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "accuracy":   { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "gpsFixed":   { ".validate": "newData.isBoolean()" },
+          "wifi":       { ".validate": "newData.isBoolean()" },
+          "timestamp":  { ".validate": "newData.isNumber()" },
+          "$other":     { ".validate": false }
+        }
+      }
+    },
+    "$other": { ".read": false, ".write": false }
+  }
+}
